@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="news-container">
+    <div class="news-item">
+        <!-- Display the banner image -->
+        <img src="{{ url_for('news_images', news_id=news_title.lower(), filename='banner.jpg') }}" alt="{{ news_title }}">
+
+        <!-- Display the news title -->
+        <h2>{{ news_title }}</h2>
+
+        <!-- Display the article content (which may contain HTML) -->
+        <div class="news-content">
+            {{ content|safe }}  <!-- Ensure the HTML is rendered safely -->
+        </div>
+    </div>
+</div>
+{% endblock %}

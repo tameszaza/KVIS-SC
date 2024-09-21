@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="banner-container">
+    <div class="banner" id="banner">
+        {% for item in news_items %}
+        <div class="banner-item">
+            <a href="{{ url_for('news_article', news_id=item.id) }}">
+                <!-- Fix: Use only 'banner.jpg' for filename and 'item.id' for the news_id -->
+                <img src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" alt="{{ item.title }}">
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    let bannerIndex = 0;
+    const banners = document.querySelectorAll('.banner-item');
+
+    function rotateBanner() {
+        // Remove "show" class from all banners
+        banners.forEach(banner => banner.classList.remove('show'));
+        
+        // Add "show" class to the current banner
+        banners[bannerIndex].classList.add('show');
+        
+        // Increment the index, reset if it exceeds the total number of banners
+        bannerIndex = (bannerIndex + 1) % banners.length;
+    }
+
+    // Set an interval to rotate banners every 3 seconds
+    setInterval(rotateBanner, 3000);
+
+    // Initially show the first banner
+    banners[bannerIndex].classList.add('show');
+
+</script>
+{% endblock %}

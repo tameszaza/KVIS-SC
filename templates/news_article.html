@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="news-container">
+    <h2>{{ news_item.title }}</h2>
+    <img src="{{ url_for('news_images', filename=news_item.banner) }}" alt="{{ news_item.title }}">
+    
+    <!-- Show button to load full content -->
+    <button id="load-news-content">Read Full News</button>
+    
+    <!-- Container for full content -->
+    <div id="news-content" style="display:none;">
+        <p></p>
+    </div>
+</div>
+
+<script>
+// JavaScript to load full news content when the button is clicked
+document.getElementById('load-news-content').addEventListener('click', function() {
+    fetch("{{ url_for('news_content', news_id=news_item.id) }}")
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('news-content').style.display = 'block';
+            document.getElementById('news-content').querySelector('p').innerHTML = data.content;
+            this.style.display = 'none';  // Hide the button after loading content
+        })
+        .catch(error => {
+            console.error('Error loading news content:', error);
+        });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>News Overview</h2>
+<ul>
+    {% for item in news_items %}
+    <li>
+        <a href="{{ url_for('news_article', news_id=item.id) }}">
+            {{ item.title }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
