@@ -1,59 +1,60 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
+/* styles.css */
+
+/* Adjust carousel image height */
+.carousel-item img {
+    height: 50vh;
+    object-fit: cover;
 }
 
-header {
-    background-color: #333;
-    padding: 10px;
-    color: white;
-    text-align: center;
+/* Style for progress report icons */
+.progress-report-icon {
+    margin-right: 8px;
 }
 
-header a {
-    color: white;
-    text-decoration: none;
-    margin: 0 10px;
+/* Optional: Additional styling for cards */
+.card {
+    border: none;
 }
 
-.logo {
-    display: inline-block;
-    margin-right: 20px;
+.card-header {
+    font-weight: bold;
 }
 
-.banner-container {
-    position: relative;
+.card-body ul li {
+    margin-bottom: 10px;
+}
+/* styles.css */
+
+/* Adjust the card image height */
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+/* Optionally, add hover effect to cards */
+.card:hover {
+    transform: scale(1.02);
+    transition: transform 0.2s;
+}
+/* styles.css */
+
+/* Ensure the image fills its container */
+.news-container img {
     width: 100%;
-    height: 300px; /* Adjust height as needed */
-    overflow: hidden;
+    height: auto;
 }
 
-.banner-item {
-    opacity: 0;
-    transition: opacity 1s ease-in-out; /* Smooth transition */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1; /* Default lower z-index for hidden banners */
-}
-
-.banner-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Keeps images responsive */
-}
-
-.banner-item.show {
-    opacity: 1; /* Visible banner */
-    z-index: 2; /* Ensure the active banner is on top */
-}
-
-footer {
-    text-align: center;
-    padding: 20px;
-    background-color: #f1f1f1;
+/* Style the news content */
+.news-content {
     margin-top: 20px;
+}
+
+/* Optional: Style the card */
+.card {
+    border: none;
+}
+
+.card-title {
+    font-size: 2rem;
+    margin-bottom: 20px;
 }

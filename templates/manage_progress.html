@@ -1,0 +1,26 @@
+<!-- manage_progress.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h2>Manage Progress Reports</h2>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            {{ form.plan.label }}
+            {{ form.plan(class_="form-control", rows=5) }}
+            <small class="form-text text-muted">Enter each item on a new line.</small>
+        </div>
+        <div class="form-group">
+            {{ form.doing.label }}
+            {{ form.doing(class_="form-control", rows=5) }}
+            <small class="form-text text-muted">Enter each item on a new line.</small>
+        </div>
+        <div class="form-group">
+            {{ form.done.label }}
+            {{ form.done(class_="form-control", rows=5) }}
+            <small class="form-text text-muted">Enter each item on a new line.</small>
+        </div>
+        <button type="submit" class="btn btn-success">Update</button>
+    </form>
+</div>
+{% endblock %}

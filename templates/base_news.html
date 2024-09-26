@@ -1,17 +1,23 @@
+<!-- templates/base_news.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="news-container">
-    <div class="news-item">
-        <!-- Display the banner image -->
-        <img src="{{ url_for('news_images', news_id=news_title.lower(), filename='banner.jpg') }}" alt="{{ news_title }}">
-
-        <!-- Display the news title -->
-        <h2>{{ news_title }}</h2>
-
-        <!-- Display the article content (which may contain HTML) -->
-        <div class="news-content">
-            {{ content|safe }}  <!-- Ensure the HTML is rendered safely -->
+<div class="container my-5">
+    <div class="card shadow">
+        <div class="row no-gutters">
+            <!-- Image on the left -->
+            <div class="col-md-6">
+                <img src="{{ url_for('news_images', news_id=news_id, filename='banner.jpg') }}" alt="{{ news_title }}" class="img-fluid rounded-left" style="height:100%; object-fit: cover;">
+            </div>
+            <!-- Text on the right -->
+            <div class="col-md-6">
+                <div class="card-body">
+                    <h2 class="card-title">{{ news_title }}</h2>
+                    <div class="news-content">
+                        {{ content|safe }}  <!-- Ensure the HTML is rendered safely -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
