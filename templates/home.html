@@ -32,21 +32,22 @@
 <div class="mt-5">
     <h2 class="text-center mb-4">Progress Report</h2>
     <div class="row">
-        <!-- What We Plan to Do -->
+        <!-- What We Have Done -->
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow">
-                <div class="card-header bg-info text-white">
-                    <h5 class="card-title mb-0">What We Plan to Do</h5>
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">What We Have Done</h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled">
-                        {% for item in progress_plan %}
-                        <li><i class="fas fa-lightbulb text-info"></i> {{ item }}</li>
+                        {% for item in progress_done %}
+                        <li><i class="fas fa-check-circle text-success"></i> {{ item }}</li>
                         {% endfor %}
                     </ul>
                 </div>
             </div>
         </div>
+        
         <!-- What We Are Doing -->
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow">
@@ -62,16 +63,16 @@
                 </div>
             </div>
         </div>
-        <!-- What We Have Done -->
+        <!-- What We Plan to Do -->
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow">
-                <div class="card-header bg-success text-white">
-                    <h5 class="card-title mb-0">What We Have Done</h5>
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">What We Plan to Do</h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled">
-                        {% for item in progress_done %}
-                        <li><i class="fas fa-check-circle text-success"></i> {{ item }}</li>
+                        {% for item in progress_plan %}
+                        <li><i class="fas fa-lightbulb text-info"></i> {{ item }}</li>
                         {% endfor %}
                     </ul>
                 </div>
