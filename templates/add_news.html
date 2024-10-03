@@ -13,6 +13,12 @@
             {{ form.banner.label }}
             {{ form.banner(class_="form-control-file") }}
         </div>
+        <!-- Added Snippet Field -->
+        <div class="form-group">
+            {{ form.snippet.label }}
+            {{ form.snippet(class_="form-control") }}
+            <small class="form-text text-muted">Enter a short snippet or summary of the news article.</small>
+        </div>
         <div class="form-group">
             {{ form.content.label }}
             {{ form.content(class_="form-control", rows=10) }}

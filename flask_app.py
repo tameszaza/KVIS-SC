@@ -22,6 +22,13 @@ login_manager.login_view = 'login'
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
+        
+class NewsForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired()])
+    snippet = StringField('Snippet', validators=[DataRequired()])
+    content = TextAreaField('Content (HTML)', validators=[DataRequired()])
+    banner = FileField('Banner Image')
+    submit = SubmitField('Submit')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -138,11 +145,6 @@ def admin_dashboard():
     news_items = get_news()
     return render_template('admin_dashboard.html', news_items=news_items)
 
-class NewsForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired()])
-    content = TextAreaField('Content (HTML)', validators=[DataRequired()])
-    banner = FileField('Banner Image')  # Optional during editing
-    submit = SubmitField('Submit')
 
 @app.route('/admin/add_news', methods=['GET', 'POST'])
 @login_required
@@ -150,6 +152,7 @@ def add_news():
     form = NewsForm()
     if form.validate_on_submit():
         title = form.title.data.strip()
+        snippet = form.snippet.data.strip()
         content = form.content.data
         banner = form.banner.data
 
@@ -172,7 +175,7 @@ def add_news():
             f.write(content)
 
         # Save metadata
-        metadata = {'title': title}
+        metadata = {'title': title, 'snippet': snippet}
         metadata_path = os.path.join(news_folder, 'metadata.json')
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f)
@@ -181,6 +184,7 @@ def add_news():
         return redirect(url_for('admin_dashboard'))
 
     return render_template('add_news.html', form=form)
+
 
 @app.route('/admin/edit_news/<news_id>', methods=['GET', 'POST'])
 @login_required
@@ -198,14 +202,17 @@ def edit_news(news_id):
     with open(metadata_file, 'r') as f:
         metadata = json.load(f)
     title = metadata.get('title', news_id.replace('_', ' ').title())
+    snippet = metadata.get('snippet', '')
 
     form = NewsForm()
     if request.method == 'GET':
         form.title.data = title
+        form.snippet.data = snippet  # Pre-fill snippet field
         form.content.data = content
     if form.validate_on_submit():
         # Update title (rename folder if title changes)
         new_title = form.title.data.strip()
+        new_snippet = form.snippet.data.strip()
         new_news_id = new_title.lower().replace(' ', '_')
         new_news_folder = os.path.join(BASE_DIR, 'news', new_news_id)
         if new_news_id != news_id:
@@ -225,7 +232,7 @@ def edit_news(news_id):
             form.banner.data.save(banner_file)
 
         # Update metadata
-        metadata = {'title': new_title}
+        metadata = {'title': new_title, 'snippet': new_snippet}
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f)
 
@@ -233,6 +240,7 @@ def edit_news(news_id):
         return redirect(url_for('admin_dashboard'))
 
     return render_template('edit_news.html', form=form)
+
 
 @app.route('/admin/delete_news/<news_id>', methods=['POST'])
 @login_required
