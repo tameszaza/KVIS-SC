@@ -3,13 +3,16 @@ from flask_login import LoginManager, login_user, login_required, logout_user, U
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, FileField, SubmitField
 from wtforms.validators import DataRequired
-from werkzeug.utils import secure_filename
 from markupsafe import Markup
 import os
 import json
+import shutil  # Import shutil at the top
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
+
+# Define the base directory
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -45,36 +48,35 @@ def logout():
     return redirect(url_for('home'))
 
 def get_news():
-    news_folder = os.path.join(app.root_path, "news")
+    news_folder = os.path.join(BASE_DIR, "news")
     news = []
-    for folder in os.listdir(news_folder):
-        folder_path = os.path.join(news_folder, folder)
-        if os.path.isdir(folder_path):
-            banner = os.path.join(folder, "banner.jpg")
-            article_path = os.path.join(folder_path, "article.html")
-            metadata_path = os.path.join(folder_path, 'metadata.json')
-            if os.path.exists(article_path):
-                if os.path.exists(metadata_path):
-                    with open(metadata_path, 'r') as f:
-                        metadata = json.load(f)
-                    title = metadata.get('title', folder.replace('_', ' ').title())
-                    snippet = metadata.get('snippet', '')
-                else:
-                    title = folder.replace('_', ' ').title()
-                    snippet = ''
-                news.append({
-                    'id': folder,
-                    'title': title,
-                    'banner': banner,
-                    'snippet': snippet,
-                })
+    if os.path.exists(news_folder):
+        for folder in os.listdir(news_folder):
+            folder_path = os.path.join(news_folder, folder)
+            if os.path.isdir(folder_path):
+                banner = os.path.join(folder, "banner.jpg")
+                article_path = os.path.join(folder_path, "article.html")
+                metadata_path = os.path.join(folder_path, 'metadata.json')
+                if os.path.exists(article_path):
+                    if os.path.exists(metadata_path):
+                        with open(metadata_path, 'r') as f:
+                            metadata = json.load(f)
+                        title = metadata.get('title', folder.replace('_', ' ').title())
+                        snippet = metadata.get('snippet', '')
+                    else:
+                        title = folder.replace('_', ' ').title()
+                        snippet = ''
+                    news.append({
+                        'id': folder,
+                        'title': title,
+                        'banner': banner,
+                        'snippet': snippet,
+                    })
     return news
-
-
 
 @app.route('/news_images/<news_id>/<filename>')
 def news_images(news_id, filename):
-    return send_from_directory(os.path.join(app.root_path, 'news', news_id), filename)
+    return send_from_directory(os.path.join(BASE_DIR, 'news', news_id), filename)
 
 # Home page route
 @app.route('/')
@@ -88,7 +90,7 @@ def home():
 
 @app.route('/news/<news_id>')
 def news_article(news_id):
-    news_folder = os.path.join(app.root_path, 'news', news_id)
+    news_folder = os.path.join(BASE_DIR, 'news', news_id)
     article_file = os.path.join(news_folder, 'article.html')
     metadata_file = os.path.join(news_folder, 'metadata.json')
 
@@ -97,9 +99,18 @@ def news_article(news_id):
 
     # Read the content of the article
     with open(article_file, 'r') as file:
-        article_content = Markup(file.read())
+        full_content = file.read()
 
-    # Check for metadata.json
+    # Split the content
+    paragraphs = full_content.split('</p>', 1)
+    if len(paragraphs) > 1:
+        intro_content = paragraphs[0] + '</p>'
+        remaining_content = paragraphs[1]
+    else:
+        intro_content = full_content
+        remaining_content = ''
+
+    # Read metadata
     if os.path.exists(metadata_file):
         with open(metadata_file, 'r') as f:
             metadata = json.load(f)
@@ -107,8 +118,11 @@ def news_article(news_id):
     else:
         news_title = news_id.replace('_', ' ').title()
 
-    # Pass the content and banner to the template
-    return render_template('base_news.html', news_title=news_title, content=article_content, news_id=news_id)
+    return render_template('base_news.html',
+                           news_title=news_title,
+                           intro_content=Markup(intro_content),
+                           remaining_content=Markup(remaining_content),
+                           news_id=news_id)
 
 
 # News overview page
@@ -141,7 +155,7 @@ def add_news():
 
         # Create a safe folder name
         news_id = title.lower().replace(' ', '_')
-        news_folder = os.path.join(app.root_path, 'news', news_id)
+        news_folder = os.path.join(BASE_DIR, 'news', news_id)
         if not os.path.exists(news_folder):
             os.makedirs(news_folder)
         else:
@@ -171,7 +185,7 @@ def add_news():
 @app.route('/admin/edit_news/<news_id>', methods=['GET', 'POST'])
 @login_required
 def edit_news(news_id):
-    news_folder = os.path.join(app.root_path, 'news', news_id)
+    news_folder = os.path.join(BASE_DIR, 'news', news_id)
     article_file = os.path.join(news_folder, 'article.html')
     metadata_file = os.path.join(news_folder, 'metadata.json')
 
@@ -193,7 +207,7 @@ def edit_news(news_id):
         # Update title (rename folder if title changes)
         new_title = form.title.data.strip()
         new_news_id = new_title.lower().replace(' ', '_')
-        new_news_folder = os.path.join(app.root_path, 'news', new_news_id)
+        new_news_folder = os.path.join(BASE_DIR, 'news', new_news_id)
         if new_news_id != news_id:
             os.rename(news_folder, new_news_folder)
             news_folder = new_news_folder
@@ -223,12 +237,11 @@ def edit_news(news_id):
 @app.route('/admin/delete_news/<news_id>', methods=['POST'])
 @login_required
 def delete_news(news_id):
-    news_folder = os.path.join(app.root_path, 'news', news_id)
+    news_folder = os.path.join(BASE_DIR, 'news', news_id)
     if not os.path.exists(news_folder):
         abort(404)
 
     # Delete the news folder and its contents
-    import shutil
     shutil.rmtree(news_folder)
 
     flash('News article deleted successfully!')
@@ -236,7 +249,7 @@ def delete_news(news_id):
 
 # Progress Report Management
 def load_progress_reports():
-    progress_file = os.path.join(app.root_path, 'progress.json')
+    progress_file = os.path.join(BASE_DIR, 'progress.json')
     if os.path.exists(progress_file):
         with open(progress_file, 'r') as f:
             return json.load(f)
@@ -244,7 +257,7 @@ def load_progress_reports():
         return {'plan': [], 'doing': [], 'done': []}
 
 def save_progress_reports(data):
-    progress_file = os.path.join(app.root_path, 'progress.json')
+    progress_file = os.path.join(BASE_DIR, 'progress.json')
     with open(progress_file, 'w') as f:
         json.dump(data, f)
 
@@ -272,5 +285,6 @@ def manage_progress():
         form.done.data = '\n'.join(progress_data['done'])
     return render_template('manage_progress.html', form=form)
 
+# Remove or comment out the app.run() when deploying to production
 if __name__ == '__main__':
     app.run(debug=True)

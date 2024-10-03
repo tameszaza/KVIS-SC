@@ -1,0 +1,100 @@
+<h1 style="text-align: center; color: #2c3e50;">Welcome to the Administrator's Guide</h1>
+    <p>Hello, esteemed <strong>Student Committee Members</strong>! This guide will help you navigate the admin features of our website. Follow the steps below to effectively manage content on the site.</p>
+
+    <hr>
+
+    <h2 style="color: #2980b9;">1. How to <em>Add New News</em></h2>
+    <ol>
+        <li>Login to the website using your admin credentials.</li>
+        <li>Navigate to the <a href="/admin">Admin Dashboard</a>.</li>
+        <li>Click on the <strong>"Add News Article"</strong> button.</li>
+        <li>Fill out the <u>Title</u>, <u>Content</u>, and upload a <u>Banner Image</u>.</li>
+        <li>Click <button style="background-color: #27ae60; color: white;">Submit</button> to publish the news.</li>
+    </ol>
+    <p><img src="{{ url_for('static', filename='images/add_news_example.png') }}" alt="Add News Example" style="width: 100%; border: 1px solid #ccc;"></p>
+
+    <h2 style="color: #c0392b;">2. How to <em>Edit Existing News</em></h2>
+    <ul>
+        <li>From the <strong>Admin Dashboard</strong>, find the news article you wish to edit.</li>
+        <li>Click on the <button style="background-color: #f1c40f; color: white;">Edit</button> button next to the article.</li>
+        <li>Make the necessary changes to the <u>Title</u>, <u>Content</u>, or upload a new <u>Banner Image</u>.</li>
+        <li>Press <button style="background-color: #27ae60; color: white;">Update</button> to save changes.</li>
+    </ul>
+
+    <h2 style="color: #8e44ad;">3. How to <em>Change Text Color</em> and Use HTML Tags</h2>
+    <p>You can enhance your news articles using simple HTML tags:</p>
+    <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+        <tr>
+            <th>HTML Tag</th>
+            <th>Description</th>
+            <th>Example</th>
+        </tr>
+        <tr>
+            <td><code>&lt;strong&gt;</code></td>
+            <td>Makes text bold.</td>
+            <td><strong>This is bold text.</strong></td>
+        </tr>
+        <tr>
+            <td><code>&lt;em&gt;</code></td>
+            <td>Makes text italic.</td>
+            <td><em>This is italic text.</em></td>
+        </tr>
+        <tr>
+            <td><code>&lt;u&gt;</code></td>
+            <td>Underlines text.</td>
+            <td><u>This text is underlined.</u></td>
+        </tr>
+        <tr>
+            <td><code>&lt;font color="red"&gt;</code></td>
+            <td>Changes text color.</td>
+            <td><span style="color: red;">This text is red.</span></td>
+        </tr>
+    </table>
+    <p>To change the color of your text, you can use the <code>&lt;span&gt;</code> tag with the <code>style</code> attribute. For example:</p>
+    <pre>
+&lt;span style="color: blue;"&gt;This text is blue.&lt;/span&gt;
+    </pre>
+    <p>Which will display as: <span style="color: blue;">This text is blue.</span></p>
+
+    <h2 style="color: #16a085;">4. How to <em>Write News in HTML</em></h2>
+    <p>When adding or editing a news article, you can use HTML tags to format your content. Here's how:</p>
+    <blockquote style="background-color: #ecf0f1; padding: 10px; border-left: 5px solid #16a085;">
+        <p>1. In the <strong>Content</strong> field, type your news article using regular text.</p>
+        <p>2. To add formatting, insert HTML tags directly into the text.</p>
+        <p>3. Use headings, paragraphs, lists, images, and more to enrich your article.</p>
+    </blockquote>
+    <p>For example:</p>
+    <pre>
+&lt;h3&gt;Upcoming Events&lt;/h3&gt;
+&lt;ul&gt;
+    &lt;li&gt;Science Fair - June 5th&lt;/li&gt;
+    &lt;li&gt;Art Exhibition - June 12th&lt;/li&gt;
+&lt;/ul&gt;
+    </pre>
+    <p>Will display as:</p>
+    <h3>Upcoming Events</h3>
+    <ul>
+        <li>Science Fair - June 5th</li>
+        <li>Art Exhibition - June 12th</li>
+    </ul>
+
+    <h2 style="color: #d35400;">5. How to <em>Update the Progress Report</em></h2>
+    <p>Keep everyone informed by updating the progress report:</p>
+    <ol>
+        <li>Go to the <strong>Admin Dashboard</strong>.</li>
+        <li>Select <strong>"Manage Progress Reports"</strong>.</li>
+        <li>In each section (<span style="color: #2980b9;">Plan</span>, <span style="color: #f1c40f;">Doing</span>, <span style="color: #27ae60;">Done</span>), list items on separate lines.</li>
+        <li>Click <button style="background-color: #27ae60; color: white;">Update</button> to save your changes.</li>
+    </ol>
+    <p><img src="{{ url_for('static', filename='images/progress_report_example.png') }}" alt="Progress Report Example" style="width: 100%; border: 1px solid #ccc;"></p>
+
+    <h2 style="color: #7f8c8d;">Additional Tips</h2>
+    <ul>
+        <li>Use clear and concise language in your articles.</li>
+        <li>Include images to make your news more engaging.</li>
+        <li>Always review your content before publishing.</li>
+    </ul>
+
+    <hr>
+
+    <p style="text-align: center;">Thank you for your contribution to keeping our community informed!</p>

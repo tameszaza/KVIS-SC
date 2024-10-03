@@ -7,10 +7,13 @@
     <div class="carousel-inner">
         {% for item in news_items %}
         <div class="carousel-item {% if loop.first %}active{% endif %}">
-            <img class="d-block w-100" src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" alt="{{ item.title }}">
-            <div class="carousel-caption d-none d-md-block">
-                <h5>{{ item.title }}</h5>
-            </div>
+            <!-- Change the href to link to the edit_news route -->
+            <a href="{{ url_for('news_article', news_id=item.id) }}">
+                <img class="d-block w-100" src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" alt="{{ item.title }}">
+                <div class="carousel-caption d-none d-md-block">
+                    <h5>{{ item.title }}</h5>
+                </div>
+            </a>
         </div>
         {% endfor %}
     </div>
@@ -23,6 +26,7 @@
         <span class="sr-only">Next</span>
     </a>
 </div>
+
 
 <!-- Progress Report Section -->
 <div class="mt-5">

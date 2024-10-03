@@ -4,19 +4,27 @@
 {% block content %}
 <div class="container my-5">
     <div class="card shadow">
-        <div class="row no-gutters">
+        <!-- Side-by-side section -->
+        <div class="row no-gutters align-items-start">
             <!-- Image on the left -->
             <div class="col-md-6">
-                <img src="{{ url_for('news_images', news_id=news_id, filename='banner.jpg') }}" alt="{{ news_title }}" class="img-fluid rounded-left" style="height:100%; object-fit: cover;">
+                <img src="{{ url_for('news_images', news_id=news_id, filename='banner.jpg') }}" alt="{{ news_title }}" class="img-fluid rounded-left w-100" style="object-fit: cover;">
             </div>
-            <!-- Text on the right -->
+            <!-- Introductory text on the right -->
             <div class="col-md-6">
                 <div class="card-body">
                     <h2 class="card-title">{{ news_title }}</h2>
+                    <!-- Display the first few paragraphs or a summary -->
                     <div class="news-content">
-                        {{ content|safe }}  <!-- Ensure the HTML is rendered safely -->
+                        {{ intro_content|safe }}
                     </div>
                 </div>
+            </div>
+        </div>
+        <!-- Full-width content below -->
+        <div class="card-body">
+            <div class="news-content">
+                {{ remaining_content|safe }}
             </div>
         </div>
     </div>
