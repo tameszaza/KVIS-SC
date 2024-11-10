@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="" IE=edge>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHdisk</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image" href="assets/images/falvicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+
+<body>
+    <!-- Navigation bar -->
+    <header>
+        <h2 class="logo">PHdisk</h2>
+        <nav class="navigation">
+            <a href="index.html">Home</a>
+            <a href="pages/about.html">About</a>
+            <a href="pages/services.html">Services</a>
+            <a href="pages/contact.html">Contact</a>
+            <button class="btnLogin-popup" id="authBtn">Login</button>
+        </nav>
+    </header>
+    
+    <!-- Image slider -->
+    <div class="slideShow">
+        <div class="slider">
+            <div class="slides fade">
+                <img class="slide" src="assets/images/slider_1.png" style="width:100%" alt="Image#1">
+                <div class="imageCaption">"Wake me up when September ends"</div>
+            </div>
+
+            <div class="slides fade">
+                <img class="slide" src="assets/images/slider_2.jpg" style="width:100%" alt="Image#2">
+                <div class="imageCaption">"In this world that is so blue, I will sing aloud for you"</div>
+            </div>
+
+            <div class="slides fade">
+                <img class="slide" src="assets/images/slider_3.png" style="width:100%" alt="Image#3">
+                <div class="imageCaption">"In this painted galaxy, there are things we never see"</div>
+            </div>
+
+            <!-- Next and previous buttons -->
+            <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+            <a class="next" onclick="plusSlides(1)">&#10095;</a>
+        </div>
+        <br>
+
+        <!-- The dots/circles -->
+        <div class="dot-container" style="text-align:center">
+            <span class="dot" id="dot1" onclick="currentSlide(1)"></span>
+            <span class="dot" id="dot2" onclick="currentSlide(2)"></span>
+            <span class="dot" id="dot3" onclick="currentSlide(3)"></span>
+        </div>
+    </div>
+
+    <!-- Authentication widget -->
+    <div class="wrapper">
+        <span class="icon-close">
+            <ion-icon name="close-outline"></ion-icon>
+        </span>
+        <!-- Login form -->
+        <div class="form-box login">
+            <h2>Login</h2>
+            <form action="#">
+                <div class="input-box">
+                    <span class="icon">
+                        <ion-icon name="person-outline"></ion-icon></span>
+                    <input type="username" required>
+                    <label>Username</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon">
+                        <ion-icon name="lock-closed-outline"></ion-icon>
+                    </span>
+                    <input type="password" required>
+                    <label>Password</label>
+                </div>
+                <div class="remember-forgot">
+                    <label><input type="checkbox" id="rememberMe"> Remember me</label>
+                    <a href='#'>Forgot Password?</a>
+                </div>
+                <button type="submit" class="btn" id="login">Login</button>
+                <div class="login-register">
+                    <p>Don't have an account?
+                        <a href='#' class="register-link">Register</a>
+                    </p>
+                    <p class="warning" id="warningLogin"></p>
+                </div>
+            </form>
+        </div>
+
+        <!-- Registration form -->
+        <div class="form-box register">
+            <h2>Registration</h2>
+            <form action="#">
+                <div class="input-box">
+                    <span class="icon">
+                        <ion-icon name="person-outline"></ion-icon>
+                    </span>
+                    <input type="username" required>
+                    <label>Username</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon">
+                        <ion-icon name="mail-outline"></ion-icon></span>
+                    <input type="email" required>
+                    <label>Email</label>
+                </div>
+                <div class="input-box">
+                    <span class="icon">
+                        <ion-icon name="lock-closed-outline"></ion-icon>
+                    </span>
+                    <input type="password" required>
+                    <label>Password</label>
+                </div>
+                <div class="agree-to-terms">
+                    <label><input type="checkbox" id="agreeToTerms"> I agree to the terms & conditions.</label>
+                </div>
+                <br>
+                <button type="submit" class="btn" id="register">Register</button>
+                <div class="login-register">
+                    <p>Already have an account?
+                        <a href='#' class="login-link">Login</a>
+                    </p>
+                    <p class="warning" id="warningRegister"></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <!-- Java scripts -->
+    <script src="assets/scripts/scripts.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>
