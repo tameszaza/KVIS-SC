@@ -165,19 +165,11 @@ login.onclick = function () {
 
   checkLogin(usernameInputLength, passwordInputLength);
 
-  // Test
-  /*
-  console.log(`Username: ${usernameInput}`);
-  console.log(`Password: ${passwordInput}`);
-  */
-
   // Create a user instance
   currentUser = new User(usernameInput, passwordInput, null);
-  // logUser(currentUser);
 
   // Authenticate with the server.
   console.log(authentication(currentUser));
-  // warningLoginMessage.textContent = authentication(currentUser);
 };
 
 register.onclick = function () {
@@ -227,56 +219,50 @@ function logUser(user) {
 
 // Check login information conditions
 function checkLogin(usernameInputLength, passwordInputLength) {
-  if (usernameInputLength >= 3 && usernameInputLength <= 12) {
-    if (passwordInputLength >= 8 && passwordInputLength <= 20) {
-      warningLoginMessage.textContent = null;
-    } else if (passwordInputLength >= 20)
-      warningLoginMessage.textContent =
-        "Password must be no longer than 20 letters.";
-    else
-      warningLoginMessage.textContent =
-        "Password must be atleast 8 letters long.";
-  } else if (usernameInputLength >= 12)
-    warningLoginMessage.textContent =
-      "Username must be no longer than 12 letters.";
-  else
-    warningLoginMessage.textContent =
-      "Username must be atleast 3 letters long.";
+  if (usernameInputLength < 3) {
+    warningLoginMessage.textContent = "Username must be at least 3 letters long.";
+    return;
+  }
+  if (usernameInputLength > 12) {
+    warningLoginMessage.textContent = "Username must be no longer than 12 letters.";
+    return;
+  }
+  if (passwordInputLength < 8) {
+    warningLoginMessage.textContent = "Password must be at least 8 letters long.";
+    return;
+  }
+  if (passwordInputLength > 20) {
+    warningLoginMessage.textContent = "Password must be no longer than 20 letters.";
+    return;
+  }
+
+  warningLoginMessage.textContent = null;
 }
 
 // Check registration information conditions
-function checkRegistration(
-  usernameInputLength,
-  emailInputLength,
-  passwordInputLength
-) {
-  if (usernameInputLength >= 3 && usernameInputLength <= 12) {
-    if (passwordInputLength >= 8 && passwordInputLength <= 20) {
-      if (emailInputLength === 0 || !validateEmail(emailInput)) {
-        warningRegisterMessage.textContent = "Email is invalid.";
-        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
-      }
-      else warningRegisterMessage.textContent = null;
-    } else if (passwordInputLength >= 20) {
-      warningRegisterMessage.textContent =
-        "Password must be no longer than 20 letters.";
-        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
-    }
-    else {
-      warningRegisterMessage.textContent =
-        "Password must be atleast 8 letters long.";
-        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
-    }
-  } else if (usernameInputLength >= 12) {
-    warningRegisterMessage.textContent =
-      "Username must be no longer than 12 letters.";
-      checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+function checkRegistration(usernameInputLength, emailInputLength, passwordInputLength) {
+  if (usernameInputLength < 3) {
+    warningRegisterMessage.textContent = "Username must be at least 3 letters long.";
+    return;
   }
-  else {
-    warningRegisterMessage.textContent =
-      "Username must be atleast 3 letters long.";
-      checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+  if (usernameInputLength > 12) {
+    warningRegisterMessage.textContent = "Username must be no longer than 12 letters.";
+    return;
   }
+  if (passwordInputLength < 8) {
+    warningRegisterMessage.textContent = "Password must be at least 8 letters long.";
+    return;
+  }
+  if (passwordInputLength > 20) {
+    warningRegisterMessage.textContent = "Password must be no longer than 20 letters.";
+    return;
+  }
+  if (emailInputLength === 0 || !validateEmail(emailInput)) {
+    warningRegisterMessage.textContent = "Email is invalid.";
+    return;
+  }
+
+  warningRegisterMessage.textContent = null;
 }
 
 // Backend services
@@ -286,38 +272,26 @@ const serverAddress = "http://10.241.68.145:3000/users";
 async function authentication(user) {
   const { username, password } = user;
 
-  $.post(
-    serverAddress + "/login",
-    { username, password },
-    function (response, status, xhr) {
-      if (xhr.status === 200) {
-        if (rememberMe.checked) {
-          localStorage.setItem("isAuth", true);
-          localStorage.setItem("username", username);
-          sessionStorage.removeItem("isLogin");
-          updateAuthButtonMessage();
-        } else {
-          localStorage.setItem("isAuth", false);
-          sessionStorage.setItem("isAuth", true);
-          sessionStorage.setItem("username", username);
-          sessionStorage.removeItem("isLogin");
-          updateAuthButtonMessage();
-        }
+  try {
+    const response = await $.post(`${serverAddress}/login`, { username, password });
 
-        // Add delay to cover the response time of the server
-        /*
-        setTimeout(() => {
-          window.location.assign("pages/services.html");
-        }, 3000);
-        */
-        window.location.assign("pages/services.html");
-      } else return "Login unsuccessful: " + response;
+    if (rememberMe.checked) {
+      localStorage.setItem("isAuth", true);
+      localStorage.setItem("username", username);
+      sessionStorage.removeItem("isLogin");
+    } else {
+      localStorage.setItem("isAuth", false);
+      sessionStorage.setItem("isAuth", true);
+      sessionStorage.setItem("username", username);
+      sessionStorage.removeItem("isLogin");
     }
-  ).fail(function (xhr) {
-    return "Login unsuccessful: " + xhr.responseText;
-  });
 
-  return null;
+    updateAuthButtonMessage();
+    window.location.assign("#");
+
+  } catch (xhr) {
+    warningLoginMessage.textContent = "Login unsuccessful: " + xhr.responseText;
+  }
 }
 
 // User registration
