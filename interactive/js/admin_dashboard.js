@@ -12,3 +12,4 @@ let logout;
 const btnPopup = document.querySelector(".btnLogin-popup");
 
 wishLogout(logout, btnPopup);
+
