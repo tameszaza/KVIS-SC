@@ -287,7 +287,7 @@ async function authentication(user) {
     }
 
     updateAuthButtonMessage();
-    window.location.assign("#");
+    window.location.assign("/templates/home.html");
 
   } catch (xhr) {
     warningLoginMessage.textContent = "Login unsuccessful: " + xhr.responseText;
@@ -311,7 +311,7 @@ function registerUser(user) {
         sessionStorage.setItem("username", username);
         sessionStorage.removeItem("isLogin");
         updateAuthButtonMessage();
-        window.location.assign("/pages/services.html");
+        window.location.assign("/templates/home.html");
       } else {
         warningRegisterMessage.textContent =
           "Registration unsuccessful: " + response;
