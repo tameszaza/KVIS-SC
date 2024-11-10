@@ -6,3 +6,9 @@ isAuth(isAuthLocal, isAuthSession);
 
 // Non-static display value
 updateAuthButtonMessage();
+
+// Logout
+let logout;
+const btnPopup = document.querySelector(".btnLogin-popup");
+
+wishLogout(logout, btnPopup);
