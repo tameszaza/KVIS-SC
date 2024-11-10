@@ -252,21 +252,31 @@ function checkRegistration(
 ) {
   if (usernameInputLength >= 3 && usernameInputLength <= 12) {
     if (passwordInputLength >= 8 && passwordInputLength <= 20) {
-      if (emailInputLength === 0 || !validateEmail(emailInput))
+      if (emailInputLength === 0 || !validateEmail(emailInput)) {
         warningRegisterMessage.textContent = "Email is invalid.";
+        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+      }
       else warningRegisterMessage.textContent = null;
-    } else if (passwordInputLength >= 20)
+    } else if (passwordInputLength >= 20) {
       warningRegisterMessage.textContent =
         "Password must be no longer than 20 letters.";
-    else
+        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+    }
+    else {
       warningRegisterMessage.textContent =
         "Password must be atleast 8 letters long.";
-  } else if (usernameInputLength >= 12)
+        checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+    }
+  } else if (usernameInputLength >= 12) {
     warningRegisterMessage.textContent =
       "Username must be no longer than 12 letters.";
-  else
+      checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+  }
+  else {
     warningRegisterMessage.textContent =
       "Username must be atleast 3 letters long.";
+      checkRegistration(usernameInputLength, emailInputLength, passwordInputLength);
+  }
 }
 
 // Backend services
