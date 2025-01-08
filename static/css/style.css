@@ -1,7 +1,7 @@
 :root {
     --color-text-1: #ffffff;
-    --color-text-2: #ffc0c9;
-    --color-text-3: #381616;
+    --color-text-2: #f5e0ff;
+    --color-text-3: #31193d;
     --header-bar-color-inactive: rgba(135, 103, 153, 0.0);
     --header-bar-color-active: rgba(135, 103, 153, 0.8);
 }
