@@ -2,7 +2,8 @@
     --color-text-1: #ffffff;
     --color-text-2: #ffc0c9;
     --color-text-3: #381616;
-    --header-bar-color-inactive: rgba(255, 168, 255, 0);
+    --header-bar-color-inactive: rgba(135, 103, 153, 0.0);
+    --header-bar-color-active: rgba(135, 103, 153, 0.8);
 }
 
 * {
@@ -40,7 +41,7 @@ header {
     left: 0;
     width: 100%;
     padding: 20px 100px;
-    background: rgba(61, 49, 49, 0.0);
+    background: var(--header-bar-color-inactive);
     background-blend-mode: overlay;
     display: flex;
     justify-content: space-between;
@@ -50,7 +51,7 @@ header {
 }
 
 header:hover {
-    background: rgba(61, 49, 49, 0.85);
+    background: var(--header-bar-color-active)
 }
 
 .logo {
