@@ -8,7 +8,7 @@
         {% for item in news_items %}
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow-sm">
-                <img src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" class="card-img-top" alt="{{ item.title }}">
+                <img src="{{ url_for('news_images', news_id=item.id, filename='banner_low.jpg') }}" class="card-img-top" alt="{{ item.title }}">
                 <div class="card-body">
                     <h5 class="card-title">{{ item.title }}</h5>
                     <!-- Optionally add a snippet or description if available -->

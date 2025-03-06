@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Room Reservation Calendar</h2>
+
+  <!-- Custom Styles for Responsive Timeline -->
+  <style>
+    /* Horizontal timeline for larger screens */
+    .timeline-container {
+      position: relative;
+      height: 150px;
+      background: #f8f9fa;
+      margin-bottom: 20px;
+    }
+    .timeline-hour {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      border-left: 1px dashed #ddd;
+    }
+    .timeline-hour small {
+      position: absolute;
+      top: -20px;
+      left: -10px;
+    }
+    .timeline-event {
+      position: absolute;
+      top: 30px;
+      height: 50px;
+      overflow: hidden;
+    }
+    /* Vertical timeline for small screens */
+    @media (max-width: 767px) {
+      .timeline-container {
+        height: auto;
+        display: block;
+        padding: 10px;
+      }
+      .timeline-hour {
+        position: relative !important;
+        left: 0 !important;
+        border-left: none !important;
+        border-top: 1px dashed #ddd;
+        margin-bottom: 10px;
+        padding-top: 10px;
+      }
+      .timeline-hour small {
+        position: relative;
+        top: 0;
+        left: 0;
+        display: block;
+        margin-bottom: 5px;
+      }
+      .timeline-event {
+        position: relative !important;
+        margin: 5px 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        padding: 5px !important;
+        left: 0 !important;
+      }
+    }
+  </style>
+
+  <div class="container">
+
+  
+    <!-- Filter Form -->
+    <form method="get" action="{{ url_for('reservations') }}" class="form-inline mb-4">
+      {{ filter_form.hidden_tag() }}
+      <div class="form-group mr-2">
+        {{ filter_form.filter_date.label(class="mr-2") }}
+        {{ filter_form.filter_date(class="form-control") }}
+      </div>
+      <div class="form-group mr-2">
+        {{ filter_form.filter_room.label(class="mr-2") }}
+        {{ filter_form.filter_room(class="form-control") }}
+      </div>
+      <div class="form-group">
+        {{ filter_form.submit(class="btn btn-primary") }}
+      </div>
+    </form>
+  
+    <!-- 
+         1) HORIZONTAL TIMELINE for MD+ screens 
+            (Bootstrap class: d-none d-md-block)
+    -->
+    <div class="timeline-horizontal d-none d-md-block border" style="position: relative; height: 150px; background: #f8f9fa; margin-bottom: 20px;">
+      {% for h in range(0, 25) %}
+        {% set left = (h / 24) * 100 %}
+        <!-- Hour Marker -->
+        <div style="position: absolute; top: 0; left: {{ left }}%; height: 100%; border-left: 1px dashed #ddd;">
+          <small class="text-muted" style="position: absolute; top: -20px; left: -10px;">
+            {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+          </small>
+        </div>
+      {% endfor %}
+      {% for res in reservations %}
+        {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+        {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
+        {% set duration = end_minutes - start_minutes %}
+        {% set left = (start_minutes / 1440) * 100 %}
+        {% set width = (duration / 1440) * 100 %}
+        <!-- Reservation Block -->
+        <div class="bg-info text-white rounded p-1" style="
+             position: absolute;
+             top: 30px;
+             height: 50px;
+             left: {{ left }}%;
+             width: {{ width }}%;
+             overflow: hidden;">
+          <div class="small font-weight-bold">{{ res.name }}</div>
+          <div class="small">{{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  
+    <!-- 2) VERTICAL TIMELINE for SM screens (Bootstrap class: d-block d-md-none) -->
+    <div class="timeline-vertical d-block d-md-none border" style="position: relative; width: 100%; background: #f8f9fa; margin-bottom: 20px;">
+      <div style="height: 2000px; position: relative;">
+        {% for h in range(0, 25) %}
+         {% set top = (h / 24) * 100 %}
+         <!-- Hour Marker -->
+         <div style="position: absolute; left: 5%; width: 0; border-top: 1px dashed #ddd; top: {{ top }}%; height: 0;">
+           <small class="text-muted" style="position: absolute; left: -70px; top: -10px;">
+             {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+           </small>
+         </div>
+        {% endfor %}
+        {% for res in reservations %}
+         {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+         {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
+         {% set duration = end_minutes - start_minutes %}
+         {% set top_offset = (start_minutes / 1440) * 100 %}
+         {% set height = (duration / 1440) * 100 %}
+         <!-- Reservation Block -->
+         <div class="bg-info text-white rounded p-1" style="
+              position: absolute;
+              left: 5%;
+              width: 90%;
+              top: {{ top_offset }}%;
+              height: {{ height }}%;
+              overflow: hidden;">
+           <div class="small font-weight-bold">{{ res.name }}</div>
+           <div class="small">
+             {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
+           </div>
+         </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- New: Mobile view - All Rooms Calendar -->
+    <div class="d-block d-md-none">
+      <h3 class="mb-3">Rooms Calendar</h3>
+      {% for room in rooms %}
+        <div class="card mb-3">
+          <div class="card-header">{{ room.name }}</div>
+          <div class="card-body" style="position: relative; height: 200px; background: #f8f9fa;">
+            {% for res in reservations if res.room.id == room.id %}
+              {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+              {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
+              {% set duration = end_minutes - start_minutes %}
+              {% set top_offset = (start_minutes / 1440) * 100 %}
+              {% set height = (duration / 1440) * 100 %}
+              <!-- Reservation Block for Room -->
+              <div class="bg-info text-white rounded p-1" style="
+                   position: absolute;
+                   left: 5%;
+                   width: 90%;
+                   top: {{ top_offset }}%;
+                   height: {{ height }}%;
+                   overflow: hidden;">
+                <div class="small font-weight-bold">{{ res.name }}</div>
+                <div class="small">{{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  
+    <!-- Reservation Form -->
+    <div class="card mt-4">
+      <div class="card-header">Make a Reservation</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('reservations') }}">
+          {{ reservation_form.hidden_tag() }}
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              {{ reservation_form.reservation_date.label(class="control-label") }}
+              {{ reservation_form.reservation_date(class="form-control") }}
+            </div>
+            <div class="form-group col-md-3">
+              {{ reservation_form.start_time.label(class="control-label") }}
+              {{ reservation_form.start_time(class="form-control") }}
+            </div>
+            <div class="form-group col-md-3">
+              {{ reservation_form.end_time.label(class="control-label") }}
+              {{ reservation_form.end_time(class="form-control") }}
+            </div>
+            <div class="form-group col-md-3">
+              {{ reservation_form.room.label(class="control-label") }}
+              {{ reservation_form.room(class="form-control") }}
+            </div>
+          </div>
+          <div class="form-group">
+            {{ reservation_form.name.label(class="control-label") }}
+            {{ reservation_form.name(class="form-control") }}
+          </div>
+          <div class="form-group">
+            {{ reservation_form.purpose.label(class="control-label") }}
+            {{ reservation_form.purpose(class="form-control") }}
+          </div>
+          <button type="submit" class="btn btn-success">{{ reservation_form.submit.label.text }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endblock %}
+

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Edit Reservation #{{ reservation.id }}</h2>
+  <form method="post" action="">
+    {{ form.hidden_tag() }}
+    <div class="form-row">
+      <div class="form-group col-md-3">
+        {{ form.reservation_date.label(class="control-label") }}
+        {{ form.reservation_date(class="form-control") }}
+      </div>
+      <div class="form-group col-md-3">
+        {{ form.start_time.label(class="control-label") }}
+        {{ form.start_time(class="form-control") }}
+      </div>
+      <div class="form-group col-md-3">
+        {{ form.end_time.label(class="control-label") }}
+        {{ form.end_time(class="form-control") }}
+      </div>
+      <div class="form-group col-md-3">
+        {{ form.room.label(class="control-label") }}
+        {{ form.room(class="form-control") }}
+      </div>
+    </div>
+    <div class="form-group">
+      {{ form.name.label(class="control-label") }}
+      {{ form.name(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.purpose.label(class="control-label") }}
+      {{ form.purpose(class="form-control", rows="3") }}
+    </div>
+    <button type="submit" class="btn btn-success">Update Reservation</button>
+  </form>
+</div>
+{% endblock %}
