@@ -1,0 +1,83 @@
+<!-- home.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Banner Section -->
+<div id="carouselNews" class="carousel slide" data-ride="carousel">
+    <div class="carousel-inner">
+        {% for item in news_items %}
+        <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <!-- Change the href to link to the edit_news route -->
+            <a href="{{ url_for('news_article', news_id=item.id) }}">
+                <img class="d-block w-100" src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" alt="{{ item.title }}">
+                <div class="carousel-caption d-none d-md-block">
+                    <h5>{{ item.title }}</h5>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    <a class="carousel-control-prev" href="#carouselNews" role="button" data-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="sr-only">Previous</span>
+    </a>
+    <a class="carousel-control-next" href="#carouselNews" role="button" data-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="sr-only">Next</span>
+    </a>
+</div>
+
+
+<!-- Progress Report Section -->
+<div class="mt-5">
+    <h2 class="text-center mb-4">Progress Report</h2>
+    <div class="row">
+        <!-- What We Have Done -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">What We Have Done</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for item in progress_done %}
+                        <li><i class="fas fa-check-circle text-success"></i> {{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- What We Are Doing -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="card-title mb-0">What We Are Doing</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for item in progress_doing %}
+                        <li><i class="fas fa-spinner fa-spin text-warning"></i> {{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <!-- What We Plan to Do -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">What We Plan to Do</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% for item in progress_plan %}
+                        <li><i class="fas fa-lightbulb text-info"></i> {{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

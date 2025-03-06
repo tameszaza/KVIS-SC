@@ -1,0 +1,60 @@
+/* styles.css */
+
+/* Adjust carousel image height */
+.carousel-item img {
+    height: 50vh;
+    object-fit: cover;
+}
+
+/* Style for progress report icons */
+.progress-report-icon {
+    margin-right: 8px;
+}
+
+/* Optional: Additional styling for cards */
+.card {
+    border: none;
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+.card-body ul li {
+    margin-bottom: 10px;
+}
+/* styles.css */
+
+/* Adjust the card image height */
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+/* Optionally, add hover effect to cards */
+.card:hover {
+    transform: scale(1.02);
+    transition: transform 0.2s;
+}
+/* styles.css */
+
+/* Ensure the image fills its container */
+.news-container img {
+    width: 100%;
+    height: auto;
+}
+
+/* Style the news content */
+.news-content {
+    margin-top: 20px;
+}
+
+/* Optional: Style the card */
+.card {
+    border: none;
+}
+
+.card-title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}

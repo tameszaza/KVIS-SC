@@ -1,0 +1,32 @@
+<!-- templates/base_news.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="card shadow">
+        <!-- Side-by-side section -->
+        <div class="row no-gutters align-items-start">
+            <!-- Image on the left -->
+            <div class="col-md-6">
+                <img src="{{ url_for('news_images', news_id=news_id, filename='banner.jpg') }}" alt="{{ news_title }}" class="img-fluid rounded-left w-100" style="object-fit: cover;">
+            </div>
+            <!-- Introductory text on the right -->
+            <div class="col-md-6">
+                <div class="card-body">
+                    <h2 class="card-title">{{ news_title }}</h2>
+                    <!-- Display the first few paragraphs or a summary -->
+                    <div class="news-content">
+                        {{ intro_content|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Full-width content below -->
+        <div class="card-body">
+            <div class="news-content">
+                {{ remaining_content|safe }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

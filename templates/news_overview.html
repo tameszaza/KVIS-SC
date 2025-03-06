@@ -1,0 +1,23 @@
+<!-- templates/news_overview.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center my-4">Latest News</h2>
+    <div class="row">
+        {% for item in news_items %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <img src="{{ url_for('news_images', news_id=item.id, filename='banner.jpg') }}" class="card-img-top" alt="{{ item.title }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ item.title }}</h5>
+                    <!-- Optionally add a snippet or description if available -->
+                    <p class="card-text">{{ item.snippet }}</p>
+                    <a href="{{ url_for('news_article', news_id=item.id) }}" class="btn btn-primary">Read More</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

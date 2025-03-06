@@ -22,7 +22,7 @@ login_manager.login_view = 'login'
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
-        
+
 class NewsForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     snippet = StringField('Snippet', validators=[DataRequired()])
@@ -293,6 +293,8 @@ def manage_progress():
         form.done.data = '\n'.join(progress_data['done'])
     return render_template('manage_progress.html', form=form)
 
+
+
 # Remove or comment out the app.run() when deploying to production
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
