@@ -465,5 +465,13 @@ def delete_reservation(reservation_id):
 with app.app_context():
     db.create_all()
 
+@app.template_filter('escapejs')
+def escapejs_filter(s):
+    import json
+    if not isinstance(s, str):
+        s = str(s)
+    # json.dumps returns a quoted string; remove outer quotes.
+    return json.dumps(s)[1:-1]
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)

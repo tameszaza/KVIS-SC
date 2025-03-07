@@ -70,15 +70,17 @@
       {{ filter_form.hidden_tag() }}
       <div class="form-group mr-2">
         {{ filter_form.filter_date.label(class="mr-2") }}
-        {{ filter_form.filter_date(class="form-control") }}
+        {{ filter_form.filter_date(class="form-control", onchange="this.form.submit()") }}
       </div>
       <div class="form-group mr-2">
         {{ filter_form.filter_room.label(class="mr-2") }}
-        {{ filter_form.filter_room(class="form-control") }}
+        {{ filter_form.filter_room(class="form-control", onchange="this.form.submit()") }}
       </div>
-      <div class="form-group">
-        {{ filter_form.submit(class="btn btn-primary") }}
-      </div>
+      <!-- You can either remove this button entirely or hide it:
+           <div class="form-group d-none">
+             {{ filter_form.submit(class="btn btn-primary") }}
+           </div>
+      -->
     </form>
   
     <!-- 
@@ -162,7 +164,9 @@
                   top: {{ top_offset }}px;
                   height: {{ height_px }}px;
                   overflow: hidden;
-                  z-index: 3;">
+                  z-index: 3;
+                  cursor: pointer;"
+           onclick="showReservationDetail('{{ res.name|escapejs }}', '{{ res.start_time.strftime('%H:%M') }}', '{{ res.end_time.strftime('%H:%M') }}', '{{ res.purpose|escapejs }}')">
         <div class="small font-weight-bold">
           {{ res.name }}
         </div>
@@ -251,7 +255,9 @@
                   left: {{ left_percent }}%;
                   width: {{ width_percent }}%;
                   overflow: hidden;
-                  z-index: 3;">
+                  z-index: 3;
+                  cursor: pointer;"
+           onclick="showReservationDetail('{{ res.name|escapejs }}', '{{ res.start_time.strftime('%H:%M') }}', '{{ res.end_time.strftime('%H:%M') }}', '{{ res.purpose|escapejs }}')">
         <div class="small font-weight-bold">
           {{ res.name }}
         </div>
@@ -303,9 +309,9 @@
     </div>
   </div>
   <!-- ADD near the bottom of the template -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
       {% for category, message in messages %}
         Swal.fire({
@@ -318,6 +324,19 @@
     </script>
   {% endif %}
 {% endwith %}
+
+<!-- Add JavaScript function to show popup -->
+<script>
+function showReservationDetail(name, startTime, endTime, purpose) {
+  Swal.fire({
+    title: name,
+    html: "<p><strong>Time:</strong> " + startTime + " - " + endTime + "</p>"
+         + "<p><strong>Purpose:</strong> " + purpose + "</p>",
+    icon: "info",
+    confirmButtonText: "Close"
+  });
+}
+</script>
 
   {% endblock %}
 
