@@ -1,3 +1,7 @@
+from datetime import date
+from dotenv import load_dotenv
+import os
+
 from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, abort, session, jsonify  # add session import if not already imported
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin
 from flask_wtf import FlaskForm
@@ -10,10 +14,12 @@ import json
 import shutil
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, time
-from PIL import Image  # new import
+from PIL import Image  # new import 
 import secrets  # for secure state generation
 from flask_wtf.file import FileField  # already imported? if not, add this
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from email_utils import *
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
@@ -380,8 +386,11 @@ def reservations():
             Reservation.start_time <= end_dt
         ).order_by(Reservation.start_time).all()
 
-    # Handle new reservation submission
+    # Handle new reservation submission with date validation
     if request.method == 'POST' and reservation_form.validate_on_submit():
+        if reservation_form.reservation_date.data < date.today():
+            flash("Reservation date cannot be before today's date.", "danger")
+            return redirect(url_for('reservations'))
         res_date = reservation_form.reservation_date.data
         start_dt_new = datetime.combine(res_date, reservation_form.start_time.data)
         end_dt_new   = datetime.combine(res_date, reservation_form.end_time.data)
@@ -542,18 +551,78 @@ class InventoryItemForm(FlaskForm):
     picture = FileField('Item Picture', validators=[])  # admin only upload
     submit = SubmitField('Save Item')
 
-# New route: user view for inventory requests
+# New model for normal users (inventory users)
+class InventoryUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(128), nullable=False)
+
+# New WTForms for user login/registration
+class UserLoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired()])
+    password = StringField('Password', validators=[DataRequired()])  # Use PasswordField in production
+    submit = SubmitField('Login')
+
+class UserRegisterForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired()])
+    password = StringField('Password', validators=[DataRequired()])
+    submit = SubmitField('Register')
+
+# New routes for user registration, login, and logout
+@app.route('/user/register', methods=['GET', 'POST'])
+def user_register():
+    form = UserRegisterForm()
+    if form.validate_on_submit():
+        if InventoryUser.query.filter_by(email=form.email.data.strip()).first():
+            flash("Email already registered", "error")
+            return redirect(url_for('user_register'))
+        new_user = InventoryUser(
+            email=form.email.data.strip(),
+            password=generate_password_hash(form.password.data)
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        flash("Registration successful, please login", "success")
+        return redirect(url_for('user_login'))
+    return render_template('user_register.html', form=form)
+
+@app.route('/user/login', methods=['GET', 'POST'])
+def user_login():
+    form = UserLoginForm()
+    if form.validate_on_submit():
+        user = InventoryUser.query.filter_by(email=form.email.data.strip()).first()
+        if user and check_password_hash(user.password, form.password.data):
+            session['inventory_user'] = user.email
+            flash("Logged in successfully", "success")
+            return redirect(url_for('inventory'))
+        else:
+            flash("Invalid credentials", "error")
+    return render_template('user_login.html', form=form)
+
+@app.route('/user/logout')
+def user_logout():
+    session.pop('inventory_user', None)
+    flash("Logged out successfully", "success")
+    return redirect(url_for('user_login'))
+
+# Modify existing /inventory route to require user login
 @app.route('/inventory', methods=['GET', 'POST'])
 def inventory():
+    if 'inventory_user' not in session:
+        flash("Please login to make a request", "error")
+        return redirect(url_for('user_login'))
+    
     form = InventoryRequestForm()
+    form.email.data = session['inventory_user']
     items = InventoryItem.query.all()
     form.item.choices = [(item.name, item.name) for item in items]
+    
     if 'item' in request.args:
         form.item.data = request.args.get('item')
-    # After submission, save user's email in session and query their requests.
+    
     if form.validate_on_submit():
         new_req = InventoryRequest(
-            email=form.email.data.strip(),
+            email=session['inventory_user'],
             item_name=form.item.data,
             requested_amount=int(form.requested_amount.data),
             purpose=form.purpose.data,
@@ -562,25 +631,43 @@ def inventory():
         )
         db.session.add(new_req)
         db.session.commit()
-        session['inventory_email'] = form.email.data.strip()
         flash('Your request has been submitted and is pending approval.', 'success')
         return redirect(url_for('inventory'))
-    # Retrieve user requests if email exists in session.
-    user_requests = []
-    if 'inventory_email' in session:
-        user_requests = InventoryRequest.query.filter_by(email=session['inventory_email']).all()
-    # Compute borrowed count per item.
+    
+    today_date = date.today()  # Get today's date
+    
+    user_requests = InventoryRequest.query.filter_by(email=session['inventory_user']).all()
     borrowed_counts = {}
-    today = date.today()
     for item in items:
-        approved_reqs = InventoryRequest.query.filter_by(item_name=item.name, status='approved')\
-                          .filter(InventoryRequest.return_date >= today).all()
+        approved_reqs = InventoryRequest.query.filter(
+            InventoryRequest.item_name == item.name,
+            InventoryRequest.status == 'approved',
+            InventoryRequest.return_date >= today_date
+        ).all()
         borrowed_counts[item.id] = sum(req.requested_amount for req in approved_reqs)
+    
     return render_template('inventory.html',
                            form=form,
                            items=items,
                            borrowed_counts=borrowed_counts,
-                           user_requests=user_requests)
+                           user_requests=user_requests,
+                           today=today_date)  # Pass today's date to the template
+
+# New route: Allow a signed‐in user to return an item.
+@app.route('/user/return_request/<int:req_id>', methods=['POST'])
+def return_request(req_id):
+    if 'inventory_user' not in session:
+        flash("Please login", "error")
+        return redirect(url_for('user_login'))
+    user_email = session['inventory_user']
+    req_item = InventoryRequest.query.get_or_404(req_id)
+    if req_item.email != user_email:
+        flash("Not authorized", "error")
+        return redirect(url_for('inventory'))
+    req_item.status = 'returned'
+    db.session.commit()
+    flash("Item returned successfully", "success")
+    return redirect(url_for('inventory'))
 
 # Modify admin_inventory route to check for unique item name
 @app.route('/admin/inventory', methods=['GET', 'POST'])
@@ -621,17 +708,36 @@ def admin_inventory():
 @login_required
 def admin_inventory_requests():
     requests_list = InventoryRequest.query.order_by(InventoryRequest.id.desc()).all()
-    # For approval/rejection, we check submitted action via query parameters for simplicity.
     req_id = request.args.get('id')
     action = request.args.get('action')
     if req_id and action:
         inv_req = InventoryRequest.query.get_or_404(req_id)
+        item = InventoryItem.query.filter_by(name=inv_req.item_name).first()
+        
         if action == 'approve':
+            # Check if approving this request exceeds available items
+            approved_reqs = InventoryRequest.query.filter(
+                InventoryRequest.item_name == inv_req.item_name,
+                InventoryRequest.status == 'approved'
+            ).all()
+            borrowed_count = sum(req.requested_amount for req in approved_reqs)
+            
+            if borrowed_count + inv_req.requested_amount > item.amount:
+                flash("Cannot approve: Borrowed amount exceeds available inventory.", "danger")
+                return redirect(url_for('admin_inventory_requests'))
+
             inv_req.status = 'approved'
+            subject = "Your inventory request was approved!"
+            body = f"Hello,\n\nYour request for '{inv_req.item_name}' has been approved."
+        
         elif action == 'reject':
             inv_req.status = 'rejected'
+            subject = "Your inventory request was rejected"
+            body = f"Hello,\n\nYour request for '{inv_req.item_name}' has been rejected."
+        
         db.session.commit()
         return redirect(url_for('admin_inventory_requests'))
+    
     return render_template('inventory_requests.html', requests=requests_list)
 
 # New route: Edit an existing inventory item (admin only)
@@ -669,6 +775,7 @@ def delete_inventory_item(item_id):
 
 # Create database tables if they don't exist
 with app.app_context():
+    init_mail(app)
     db.create_all()
 
 @app.template_filter('escapejs')
@@ -679,5 +786,26 @@ def escapejs_filter(s):
     # json.dumps returns a quoted string; remove outer quotes.
     return json.dumps(s)[1:-1]
 
+# New route: Allow a signed-in user to cancel a pending request.
+@app.route('/user/cancel_request/<int:req_id>', methods=['POST'], endpoint='cancel_request')
+def cancel_request(req_id):
+    if 'inventory_user' not in session:
+        flash("Please login", "error")
+        return redirect(url_for('user_login'))
+    user_email = session['inventory_user']
+    req_item = InventoryRequest.query.get_or_404(req_id)
+    if req_item.email != user_email:
+        flash("Not authorized", "error")
+        return redirect(url_for('inventory'))
+    if req_item.status != 'pending':
+        flash("Only pending requests can be cancelled", "error")
+        return redirect(url_for('inventory'))
+    db.session.delete(req_item)
+    db.session.commit()
+    flash("Request cancelled successfully", "success")
+    return redirect(url_for('inventory'))
+
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)
+

@@ -4,35 +4,85 @@
   <h2>Manage Inventory Items</h2>
   <form method="post" action="{{ url_for('admin_inventory') }}" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
-    <div class="form-group">
-      {{ form.name.label }} {{ form.name(class="form-control") }}
+    <div class="form-row">
+      <div class="form-group col-md-4">
+        {{ form.name.label }} {{ form.name(class="form-control") }}
+      </div>
+      <div class="form-group col-md-4">
+        {# Force amount input to be numeric #}
+        {{ form.amount.label }} {{ form.amount(class="form-control", type="number") }}
+      </div>
+      <div class="form-group col-md-4">
+        {{ form.picture.label }} {{ form.picture(class="form-control-file") }}
+      </div>
     </div>
     <div class="form-group">
-      {{ form.amount.label }} {{ form.amount(class="form-control") }}
-    </div>
-    <div class="form-group">
-      {{ form.description.label }} {{ form.description(class="form-control", rows="3") }}
-    </div>
-    <div class="form-group">
-      {{ form.picture.label }} {{ form.picture(class="form-control-file") }}
+      {{ form.description.label }}
+      {{ form.description(class="form-control", rows="3") }}
     </div>
     <button type="submit" class="btn btn-success">{{ form.submit.label.text }}</button>
   </form>
   <hr>
   <h4>Existing Items</h4>
-  <ul>
+  <div class="row">
     {% for item in items %}
-      <li>
-        <strong>{{ item.name }}</strong> - <em>{{ borrowed_counts[item.id] or 0 }}/{{ item.amount }}</em>
-        {% if item.picture %}
-          <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" alt="{{ item.name }}" style="max-width:100px;">
-        {% endif %}
-        <a href="{{ url_for('edit_inventory_item', item_id=item.id) }}" class="btn btn-sm btn-warning">Edit</a>
-        <form method="post" action="{{ url_for('delete_inventory_item', item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Remove this item?');">
-          <button type="submit" class="btn btn-sm btn-danger">Remove</button>
-        </form>
-      </li>
+      <div class="col-md-4 mb-3">
+        <div class="card">
+          {% if item.picture %}
+            <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" class="card-img-top" alt="{{ item.name }}">
+          {% endif %}
+          <div class="card-body">
+            <h5 class="card-title">{{ item.name }}</h5>
+            <p class="card-text">Available: <strong>{{ item.amount - (borrowed_counts[item.id] or 0) }}/{{ item.amount }}</strong></p>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#invItemModal" data-id="{{ item.id }}" data-name="{{ item.name }}" data-desc="{{ item.description }}" data-img="{{ url_for('static', filename='inventory/' ~ item.picture) }}">View Details</button>
+            <a href="{{ url_for('edit_inventory_item', item_id=item.id) }}" class="btn btn-warning btn-sm">Edit</a>
+            <form method="post" action="{{ url_for('delete_inventory_item', item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Remove this item?');">
+              <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+            </form>
+          </div>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
 </div>
+
+<!-- Modal for inventory item details -->
+<div class="modal fade" id="invItemModal" tabindex="-1" role="dialog" aria-labelledby="invItemModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="invItemModalLabel">Item Details</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <img id="invModalImage" src="" class="img-fluid mb-3" alt="Item Image">
+        <h5 id="invModalName"></h5>
+        <p id="invModalDesc"></p>
+      </div>
+      <div class="modal-footer">
+        <a id="editLink" href="#" class="btn btn-warning">Edit</a>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $('#invItemModal').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget);
+    var itemId = button.data('id');
+    var itemName = button.data('name');
+    var itemDesc = button.data('desc');
+    var itemImg = button.data('img');
+    var modal = $(this);
+    modal.find('#invModalName').text(itemName);
+    modal.find('#invModalDesc').text(itemDesc);
+    modal.find('#invModalImage').attr('src', itemImg);
+    // Build URL by replacing "0" with itemId
+    var baseUrl = "{{ url_for('edit_inventory_item', item_id=0) }}";
+    modal.find('#editLink').attr('href', baseUrl.replace('0', itemId));
+  });
+</script>
 {% endblock %}

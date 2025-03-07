@@ -24,6 +24,11 @@
                 <a href="{{ url_for('reservations') }}" class="text-white mr-3">Reservation</a>
                 <a href="{{ url_for('news_overview') }}" class="text-white mr-3">News</a>
                 <a href="{{ url_for('inventory') }}" class="text-white mr-3">Inventory</a>
+                {% if session.get('inventory_user') %}
+                  <a href="{{ url_for('user_logout') }}" class="text-white mr-3">Logout</a>
+                {% else %}
+                  <a href="{{ url_for('user_login') }}" class="text-white mr-3">Login</a>
+                {% endif %}
             </nav>
         </div>
     </header>

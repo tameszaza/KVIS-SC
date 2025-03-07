@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>User Login</h2>
+  <form method="post" action="{{ url_for('user_login') }}">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.email.label }} {{ form.email(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.password.label }} {{ form.password(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+  </form>
+  <p>Don't have an account? <a href="{{ url_for('user_register') }}">Register here</a>.</p>
+</div>
+{% endblock %}

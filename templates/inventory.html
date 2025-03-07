@@ -3,29 +3,37 @@
 <div class="container">
   <h2>Inventory</h2>
   <h4>Available Items:</h4>
-  <ul>
+  <div class="row">
     {% for item in items %}
-      <li>
-        <strong>{{ item.name }}</strong> - <em>{{ borrowed_counts[item.id] or 0 }}/{{ item.amount }}</em>
-        {% if item.picture %}
-          <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" alt="{{ item.name }}" style="max-width:100px;">
-        {% endif %}
-        <a href="{{ url_for('inventory') }}?item={{ item.name }}" class="btn btn-sm btn-info">Request this item</a>
-      </li>
+      <div class="col-md-4 mb-3">
+        <div class="card">
+          {% if item.picture %}
+            <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" class="card-img-top" alt="{{ item.name }}">
+          {% endif %}
+          <div class="card-body">
+            <h5 class="card-title">{{ item.name }}</h5>
+            <p class="card-text">Available: <strong>{{ item.amount -( borrowed_counts[item.id] or 0) }}/{{ item.amount }}</strong></p>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#itemModal" data-name="{{ item.name }}" data-description="{{ item.description }}" data-img="{{ url_for('static', filename='inventory/' ~ item.picture) }}">View Details</button>
+            <a href="{{ url_for('inventory') }}?item={{ item.name }}" class="btn btn-info">Request this item</a>
+          </div>
+        </div>
+      </div>
     {% endfor %}
-  </ul>
+  </div>
   <hr>
   <h4>Request an Item</h4>
   <form method="post" action="{{ url_for('inventory') }}">
     {{ form.hidden_tag() }}
     <div class="form-group">
-      {{ form.email.label }} {{ form.email(class="form-control") }}
+      {{ form.email.label }}
+      {{ form.email(class="form-control", readonly="readonly") }}
     </div>
     <div class="form-group">
       {{ form.item.label }} {{ form.item(class="form-control") }}
     </div>
     <div class="form-group">
-      {{ form.requested_amount.label }} {{ form.requested_amount(class="form-control") }}
+      {# Force requested_amount input to be numeric #}
+      {{ form.requested_amount.label }} {{ form.requested_amount(class="form-control", type="number") }}
     </div>
     <div class="form-group">
       {{ form.purpose.label }} {{ form.purpose(class="form-control", rows="3") }}
@@ -46,6 +54,7 @@
         <th>Purpose</th>
         <th>Return Date</th>
         <th>Status</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody>
@@ -54,12 +63,78 @@
         <td>{{ req.item_name }}</td>
         <td>{{ req.requested_amount }}</td>
         <td>{{ req.purpose }}</td>
-        <td>{{ req.return_date.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% if today is defined %}
+            {% set days_left = (req.return_date - today).days %}
+          {% else %}
+            {% set days_left = 0 %}
+          {% endif %}
+          {{ req.return_date.strftime('%Y-%m-%d') }} (
+          {% if days_left > 0 %}
+            {{ days_left }} days left
+          {% elif days_left == 0 %}
+            Due today
+          {% else %}
+            Overdue by {{ days_left|abs }} days
+          {% endif %}
+          )
+          {% if today is defined and req.status == 'approved' and req.return_date < today %}
+            <span class="badge badge-danger">Late</span>
+          {% endif %}
+        </td>
         <td>{{ req.status }}</td>
+        <td>
+          {% if req.status == 'pending' %}
+            <form method="post" action="{{ url_for('cancel_request', req_id=req.id) }}">
+              <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+            </form>
+          {% elif req.status == 'approved' %}
+            <form method="post" action="{{ url_for('return_request', req_id=req.id) }}">
+              <button type="submit" class="btn btn-sm btn-success">Return</button>
+            </form>
+          {% else %}
+            {{ req.status|capitalize }}
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% endif %}
 </div>
+
+<!-- Modal for displaying item details -->
+<div class="modal fade" id="itemModal" tabindex="-1" role="dialog" aria-labelledby="itemModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="itemModalLabel">Item Details</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <img id="modalImage" src="" class="img-fluid mb-3" alt="Item Image">
+        <h5 id="modalItemName"></h5>
+        <p id="modalItemDescription"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $('#itemModal').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget); // Button that triggered the modal
+    var itemName = button.data('name'); // Extract info from data-* attributes
+    var itemDescription = button.data('description');
+    var itemImage = button.data('img');
+    var modal = $(this);
+    modal.find('#modalItemName').text(itemName);
+    modal.find('#modalItemDescription').text(itemDescription);
+    modal.find('#modalImage').attr('src', itemImage);
+  });
+</script>
 {% endblock %}
