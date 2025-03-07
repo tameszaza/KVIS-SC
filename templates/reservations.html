@@ -30,7 +30,7 @@
       overflow: hidden;
     }
     /* Vertical timeline for small screens */
-    @media (max-width: 767px) {
+    @media (max-device-width: 767px), (max-aspect-ratio: 1/1) {
       .timeline-container {
         height: auto;
         display: block;
@@ -85,100 +85,184 @@
          1) HORIZONTAL TIMELINE for MD+ screens 
             (Bootstrap class: d-none d-md-block)
     -->
-    <div class="timeline-horizontal d-none d-md-block border" style="position: relative; height: 150px; background: #f8f9fa; margin-bottom: 20px;">
-      {% for h in range(0, 25) %}
-        {% set left = (h / 24) * 100 %}
-        <!-- Hour Marker -->
-        <div style="position: absolute; top: 0; left: {{ left }}%; height: 100%; border-left: 1px dashed #ddd;">
-          <small class="text-muted" style="position: absolute; top: -20px; left: -10px;">
-            {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
-          </small>
-        </div>
-      {% endfor %}
-      {% for res in reservations %}
-        {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
-        {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
-        {% set duration = end_minutes - start_minutes %}
-        {% set left = (start_minutes / 1440) * 100 %}
-        {% set width = (duration / 1440) * 100 %}
-        <!-- Reservation Block -->
-        <div class="bg-info text-white rounded p-1" style="
-             position: absolute;
-             top: 30px;
-             height: 50px;
-             left: {{ left }}%;
-             width: {{ width }}%;
-             overflow: hidden;">
-          <div class="small font-weight-bold">{{ res.name }}</div>
-          <div class="small">{{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}</div>
-        </div>
-      {% endfor %}
-    </div>
+<!-- Mobile Timeline Wrapper -->
+<div class="d-block d-md-none border" style="margin-bottom: 20px; overflow: hidden;">
   
-    <!-- 2) VERTICAL TIMELINE for SM screens (Bootstrap class: d-block d-md-none) -->
-    <div class="timeline-vertical d-block d-md-none border" style="position: relative; width: 100%; background: #f8f9fa; margin-bottom: 20px;">
-      <div style="height: 2000px; position: relative;">
-        {% for h in range(0, 25) %}
-         {% set top = (h / 24) * 100 %}
-         <!-- Hour Marker -->
-         <div style="position: absolute; left: 5%; width: 0; border-top: 1px dashed #ddd; top: {{ top }}%; height: 0;">
-           <small class="text-muted" style="position: absolute; left: -70px; top: -10px;">
-             {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
-           </small>
-         </div>
-        {% endfor %}
-        {% for res in reservations %}
-         {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
-         {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
-         {% set duration = end_minutes - start_minutes %}
-         {% set top_offset = (start_minutes / 1440) * 100 %}
-         {% set height = (duration / 1440) * 100 %}
-         <!-- Reservation Block -->
-         <div class="bg-info text-white rounded p-1" style="
-              position: absolute;
-              left: 5%;
-              width: 90%;
-              top: {{ top_offset }}%;
-              height: {{ height }}%;
-              overflow: hidden;">
-           <div class="small font-weight-bold">{{ res.name }}</div>
-           <div class="small">
-             {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
-           </div>
-         </div>
-        {% endfor %}
+  <!-- 1) Left vertical bar for time scale -->
+  <div style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
+    {% for h in range(0, 25) %}
+      {% set top_px = (h / 24) * 2000 %}
+      <div style="position: absolute; top: {{ top_px }}px;">
+        <small class="text-muted">
+          {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+        </small>
       </div>
-    </div>
+    {% endfor %}
+  </div>
 
-    <!-- New: Mobile view - All Rooms Calendar -->
-    <div class="d-block d-md-none">
-      <h3 class="mb-3">Rooms Calendar</h3>
-      {% for room in rooms %}
-        <div class="card mb-3">
-          <div class="card-header">{{ room.name }}</div>
-          <div class="card-body" style="position: relative; height: 200px; background: #f8f9fa;">
-            {% for res in reservations if res.room.id == room.id %}
-              {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
-              {% set end_minutes = res.end_time.hour * 60 + res.end_time.minute %}
-              {% set duration = end_minutes - start_minutes %}
-              {% set top_offset = (start_minutes / 1440) * 100 %}
-              {% set height = (duration / 1440) * 100 %}
-              <!-- Reservation Block for Room -->
-              <div class="bg-info text-white rounded p-1" style="
-                   position: absolute;
-                   left: 5%;
-                   width: 90%;
-                   top: {{ top_offset }}%;
-                   height: {{ height }}%;
-                   overflow: hidden;">
-                <div class="small font-weight-bold">{{ res.name }}</div>
-                <div class="small">{{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}</div>
-              </div>
-            {% endfor %}
-          </div>
+  <!-- 2) Calendar lanes to the right -->
+  <div style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa;">
+
+    {% set lane_map = {
+      'study_room_b1': 0,
+      'study_room_b2': 1,
+      'study_room_b3': 2,
+      'kitchen': 3
+    } %}
+    {% set lane_labels = {
+      0: "Study Room B1",
+      1: "Study Room B2",
+      2: "Study Room B3",
+      3: "Kitchen"
+    } %}
+
+    <!-- A) "Watermark" lane labels behind everything -->
+    {% for lane_i, label in lane_labels.items() %}
+      <div style="
+        position: absolute;
+        top: 0;
+        left: calc({{ lane_i }} * 25%);
+        width: 25%;
+        height: 100%;
+        text-align: center;
+        font-size: 1.2rem;
+        color: rgba(0,0,0,0.15);
+        font-weight: bold;
+        z-index: 1;
+        pointer-events: none;">
+        {{ label }}
+      </div>
+    {% endfor %}
+
+    <!-- B) Light dashed horizontal lines for each hour (no text) -->
+    {% for h in range(0, 25) %}
+      {% set top_px = (h / 24) * 2000 %}
+      <div style="
+        position: absolute;
+        left: 0; width: 100%;
+        top: {{ top_px }}px;
+        border-top: 1px dashed #ddd;
+        z-index: 2;">
+      </div>
+    {% endfor %}
+
+    <!-- C) Reservation blocks -->
+    {% for res in reservations %}
+      {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+      {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
+      {% set duration      = end_minutes - start_minutes %}
+      {% set top_offset    = (start_minutes / 1440) * 2000 %}
+      {% set height_px     = (duration / 1440) * 2000 %}
+      {% set lane_index    = lane_map.get(res.room, 0) %}
+
+      <div class="bg-info text-white rounded p-1"
+           style="position: absolute;
+                  left: calc({{ lane_index }} * 25%);
+                  width: 25%;
+                  top: {{ top_offset }}px;
+                  height: {{ height_px }}px;
+                  overflow: hidden;
+                  z-index: 3;">
+        <div class="small font-weight-bold">
+          {{ res.name }}
         </div>
-      {% endfor %}
-    </div>
+        <div class="small">
+          {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+<!-- Desktop Timeline Wrapper -->
+<div class="d-none d-md-block border" style="margin-bottom: 20px;">
+
+  <!-- 1) Horizontal time scale at the top -->
+  <div style="position: relative; width: 100%; height: 20px; background: #f8f9fa;">
+    {% for h in range(0, 25) %}
+      {% set left = (h / 24) * 100 %}
+      <div style="position: absolute; left: {{ left }}%; top: 0;">
+        <small class="text-muted">
+          {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+        </small>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- 2) Calendar (lanes + dashed hour lines + reservations) below the time scale -->
+  <div style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
+
+    {% set lane_map = {
+      'study_room_b1': 0,
+      'study_room_b2': 1,
+      'study_room_b3': 2,
+      'kitchen': 3
+    } %}
+    {% set lane_labels = {
+      0: "Study Room B1",
+      1: "Study Room B2",
+      2: "Study Room B3",
+      3: "Kitchen"
+    } %}
+
+    <!-- A) "Watermark" lane labels (behind everything) -->
+    {% for lane_i, label in lane_labels.items() %}
+      <div style="
+        position: absolute;
+        top: {{ 30 + lane_i*60 }}px;
+        left: 0; right: 0;
+        height: 50px;
+        text-align: center;
+        font-size: 1.2rem;
+        color: rgba(0,0,0,0.15);
+        font-weight: bold;
+        z-index: 1;          /* behind lines & reservations */
+        pointer-events: none;">
+        {{ label }}
+      </div>
+    {% endfor %}
+
+    <!-- B) Dashed hour lines (no text) -->
+    {% for h in range(0, 25) %}
+      {% set left_pct = (h / 24) * 100 %}
+      <div style="
+        position: absolute;
+        top: 0;
+        left: {{ left_pct }}%;
+        height: 100%;
+        border-left: 1px dashed #ddd;
+        z-index: 2;">
+      </div>
+    {% endfor %}
+
+    <!-- C) Reservation blocks -->
+    {% for res in reservations %}
+      {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+      {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
+      {% set duration      = end_minutes - start_minutes %}
+      {% set left_percent  = (start_minutes / 1440) * 100 %}
+      {% set width_percent = (duration / 1440) * 100 %}
+      {% set lane_index    = lane_map.get(res.room, 0) %}
+      {% set top_offset    = 30 + (lane_index * 60) %}
+
+      <div class="bg-info text-white rounded p-1"
+           style="position: absolute;
+                  top: {{ top_offset }}px;
+                  height: 50px;
+                  left: {{ left_percent }}%;
+                  width: {{ width_percent }}%;
+                  overflow: hidden;
+                  z-index: 3;">
+        <div class="small font-weight-bold">
+          {{ res.name }}
+        </div>
+        <div class="small">
+          {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
 
   
     <!-- Reservation Form -->
@@ -218,5 +302,22 @@
       </div>
     </div>
   </div>
+  <!-- ADD near the bottom of the template -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      {% for category, message in messages %}
+        Swal.fire({
+          title: "{{ category|capitalize }}",
+          text: "{{ message }}",
+          icon: "{{ 'success' if category == 'success' else 'error' if category == 'danger' else 'info' }}",
+          confirmButtonText: 'OK'
+        });
+      {% endfor %}
+    </script>
+  {% endif %}
+{% endwith %}
+
   {% endblock %}
 

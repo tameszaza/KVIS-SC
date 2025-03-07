@@ -93,11 +93,15 @@ class ReservationForm(FlaskForm):
 # WTForm for filtering reservations (timeline view)
 class FilterForm(FlaskForm):
     filter_date = DateField('Select Date', validators=[DataRequired()], format='%Y-%m-%d')
-    filter_room = SelectField('Select Room', choices=[('study_room_b1', 'Study Room B1'),
-                                                        ('study_room_b2', 'Study Room B2'),
-                                                        ('study_room_b3', 'Study Room B3'),
-                                                        ('kitchen', 'Kitchen')], validators=[DataRequired()])
+    filter_room = SelectField('Select Room', choices=[
+        ('ALL', 'All Rooms'),
+        ('study_room_b1', 'Study Room B1'),
+        ('study_room_b2', 'Study Room B2'),
+        ('study_room_b3', 'Study Room B3'),
+        ('kitchen', 'Kitchen')
+    ], validators=[DataRequired()])
     submit = SubmitField('Filter')
+
 
 # --- End of Reservation System Section ---
 
@@ -342,74 +346,72 @@ def manage_progress():
 # --- New Route: Room Reservation System ---
 from datetime import date  # add this if not already imported
 
+# --- CHANGE in reservations route ---
 @app.route('/reservations', methods=['GET', 'POST'])
 def reservations():
     filter_form = FilterForm(request.args)
     reservation_form = ReservationForm()
-    
-    # Set default filter values if not provided
+
+    # If user hasn't chosen a date or room yet, set defaults
+    from datetime import date, datetime, time
     if not filter_form.filter_date.data:
         filter_form.filter_date.data = date.today()
     if not filter_form.filter_room.data:
-        filter_form.filter_room.data = 'study_room_b1'
-    
+        filter_form.filter_room.data = 'ALL'
+
     selected_date = filter_form.filter_date.data.strftime('%Y-%m-%d')
     selected_room = filter_form.filter_room.data
     start_dt = datetime.combine(filter_form.filter_date.data, time.min)
-    end_dt = datetime.combine(filter_form.filter_date.data, time.max)
-    reservations_list = Reservation.query.filter(
-        Reservation.room == selected_room,
-        Reservation.start_time >= start_dt,
-        Reservation.start_time <= end_dt
-    ).order_by(Reservation.start_time).all()
-    
-    # Handling new reservation submission remains unchanged
-    # Modify the condition to remove an extra check for reservation_form.submit.data
+    end_dt   = datetime.combine(filter_form.filter_date.data, time.max)
+
+    # If "ALL", then fetch all reservations for that day; otherwise filter by a single room
+    if selected_room == 'ALL':
+        reservations_list = Reservation.query.filter(
+            Reservation.start_time >= start_dt,
+            Reservation.start_time <= end_dt
+        ).order_by(Reservation.start_time).all()
+    else:
+        reservations_list = Reservation.query.filter(
+            Reservation.room == selected_room,
+            Reservation.start_time >= start_dt,
+            Reservation.start_time <= end_dt
+        ).order_by(Reservation.start_time).all()
+
+    # Handle new reservation submission
     if request.method == 'POST' and reservation_form.validate_on_submit():
         res_date = reservation_form.reservation_date.data
         start_dt_new = datetime.combine(res_date, reservation_form.start_time.data)
-        end_dt_new = datetime.combine(res_date, reservation_form.end_time.data)
+        end_dt_new   = datetime.combine(res_date, reservation_form.end_time.data)
 
-        # Debug: print form submission details
-        print("Debug: Reservation submission details:")
-        print("Room:", reservation_form.room.data)
-        print("Name:", reservation_form.name.data)
-        print("Purpose:", reservation_form.purpose.data)
-        print("Start time:", start_dt_new)
-        print("End time:", end_dt_new)
-
-        # Check for overlapping reservation conflict in the same room
+        # Check for overlapping reservation conflict
         conflict = Reservation.query.filter(
             Reservation.room == reservation_form.room.data,
             Reservation.start_time < end_dt_new,
             Reservation.end_time > start_dt_new
         ).first()
         if conflict:
-            print("Debug: Conflict found:", conflict)
             flash('The selected time slot is already reserved. Please choose a different time.', 'danger')
             return redirect(url_for('reservations'))
         else:
-            print("Debug: No conflicting reservation found. Proceeding.")
+            new_reservation = Reservation(
+                room=reservation_form.room.data,
+                name=reservation_form.name.data,
+                purpose=reservation_form.purpose.data,
+                start_time=start_dt_new,
+                end_time=end_dt_new
+            )
+            db.session.add(new_reservation)
+            db.session.commit()
+            flash('Reservation created successfully!', 'success')
+            return redirect(url_for('reservations'))
 
-        new_reservation = Reservation(
-            room=reservation_form.room.data,
-            name=reservation_form.name.data,
-            purpose=reservation_form.purpose.data,
-            start_time=start_dt_new,
-            end_time=end_dt_new
-        )
-        db.session.add(new_reservation)
-        db.session.commit()
-        flash('Reservation created successfully!', 'success')
-        return redirect(url_for('reservations'))
-
-    
     return render_template('reservations.html',
                            filter_form=filter_form,
                            reservation_form=reservation_form,
                            reservations=reservations_list,
                            selected_date=selected_date,
                            selected_room=selected_room)
+
 
 # --- New Routes: Reservation Timeline Management ---
 
