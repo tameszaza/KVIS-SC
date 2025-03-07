@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Edit Inventory Item: {{ item.name }}</h2>
+  <form method="post" action="" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.name.label }} {{ form.name(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.amount.label }} {{ form.amount(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.description.label }} {{ form.description(class="form-control", rows="3") }}
+    </div>
+    <div class="form-group">
+      {{ form.picture.label }} {{ form.picture(class="form-control-file") }}
+    </div>
+    <button type="submit" class="btn btn-success">{{ form.submit.label.text }}</button>
+    <a href="{{ url_for('admin_inventory') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+  <hr>
+  {% if item.picture %}
+    <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" alt="{{ item.name }}" style="max-width:200px;">
+  {% endif %}
+  <form method="post" action="{{ url_for('delete_inventory_item', item_id=item.id) }}" onsubmit="return confirm('Are you sure you want to remove this item?');">
+    <button type="submit" class="btn btn-danger mt-2">Remove Item</button>
+  </form>
+</div>
+{% endblock %}

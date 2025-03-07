@@ -22,7 +22,8 @@
             </div>
             <nav>
                 <a href="{{ url_for('reservations') }}" class="text-white mr-3">Reservation</a>
-                <a href="{{ url_for('news_overview') }}" class="text-white">News</a>
+                <a href="{{ url_for('news_overview') }}" class="text-white mr-3">News</a>
+                <a href="{{ url_for('inventory') }}" class="text-white mr-3">Inventory</a>
             </nav>
         </div>
     </header>
@@ -34,5 +35,21 @@
     <footer class="bg-light text-center py-3">
         <p class="mb-0">&copy; 2024 KVIS Student Committee</p>
     </footer>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            Swal.fire({
+              title: "{{ category|capitalize }}",
+              text: "{{ message }}",
+              icon: "{{ 'success' if category == 'success' else 'error' if category == 'error' else 'info' }}",
+              confirmButtonText: 'OK'
+            });
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </script>
 </body>
 </html>

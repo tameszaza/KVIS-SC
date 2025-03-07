@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Inventory</h2>
+  <h4>Available Items:</h4>
+  <ul>
+    {% for item in items %}
+      <li>
+        <strong>{{ item.name }}</strong> - <em>{{ borrowed_counts[item.id] or 0 }}/{{ item.amount }}</em>
+        {% if item.picture %}
+          <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" alt="{{ item.name }}" style="max-width:100px;">
+        {% endif %}
+        <a href="{{ url_for('inventory') }}?item={{ item.name }}" class="btn btn-sm btn-info">Request this item</a>
+      </li>
+    {% endfor %}
+  </ul>
+  <hr>
+  <h4>Request an Item</h4>
+  <form method="post" action="{{ url_for('inventory') }}">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.email.label }} {{ form.email(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.item.label }} {{ form.item(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.requested_amount.label }} {{ form.requested_amount(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.purpose.label }} {{ form.purpose(class="form-control", rows="3") }}
+    </div>
+    <div class="form-group">
+      {{ form.return_date.label }} {{ form.return_date(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+  </form>
+  {% if user_requests %}
+  <hr>
+  <h4>Your Requests</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Purpose</th>
+        <th>Return Date</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in user_requests %}
+      <tr>
+        <td>{{ req.item_name }}</td>
+        <td>{{ req.requested_amount }}</td>
+        <td>{{ req.purpose }}</td>
+        <td>{{ req.return_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ req.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, abort
+from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, abort, session, jsonify  # add session import if not already imported
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, FileField, SubmitField
@@ -11,6 +11,9 @@ import shutil
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, time
 from PIL import Image  # new import
+import secrets  # for secure state generation
+from flask_wtf.file import FileField  # already imported? if not, add this
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
@@ -20,8 +23,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservations.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Define the base directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -465,6 +468,204 @@ def delete_reservation(reservation_id):
     db.session.commit()
     flash('Reservation deleted successfully!', 'success')
     return redirect(url_for('manage_reservations'))
+@app.route('/delete_reservation/<int:reservation_id>', methods=['POST'])
+def delete_reservation2(reservation_id):
+    reservation = Reservation.query.get_or_404(reservation_id)
+    db.session.delete(reservation)
+    db.session.commit()
+    flash('Reservation deleted successfully!', 'success')
+    return redirect(url_for('reservations'))
+
+
+# Add new route to update reservation without requiring admin login
+@app.route('/update_reservation/<int:reservation_id>', methods=['POST'])
+def update_reservation(reservation_id):
+    reservation = Reservation.query.get_or_404(reservation_id)
+    data = request.get_json()
+    # Expected data: start_time, end_time, purpose, room, name, and date (YYYY-MM-DD)
+    try:
+        res_date = datetime.strptime(data.get('date'), '%Y-%m-%d').date()
+        new_start = datetime.combine(res_date, datetime.strptime(data.get('start_time'), '%H:%M').time())
+        new_end   = datetime.combine(res_date, datetime.strptime(data.get('end_time'), '%H:%M').time())
+    except Exception as e:
+        return jsonify({'error': 'Invalid date/time format'}), 400
+
+    # Update fields
+    reservation.name = data.get('name')
+    reservation.purpose = data.get('purpose')
+    reservation.room = data.get('room')
+    reservation.start_time = new_start
+    reservation.end_time = new_end
+
+    # Optional: Add conflict checking here
+
+    try:
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Update failed'}), 500
+
+# New SQLAlchemy models for inventory system
+class InventoryItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(200))
+    picture = db.Column(db.String(200))  # path to image
+
+    def __repr__(self):
+        return f"<InventoryItem {self.name}>"
+
+class InventoryRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False)
+    item_name = db.Column(db.String(100), nullable=False)
+    requested_amount = db.Column(db.Integer, nullable=False)
+    purpose = db.Column(db.String(200))
+    return_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending/approved/rejected
+
+# New WTForms
+class InventoryRequestForm(FlaskForm):
+    email = StringField('Your Email', validators=[DataRequired()])
+    item = SelectField('Item', choices=[], validators=[DataRequired()])
+    requested_amount = StringField('Amount', validators=[DataRequired()])
+    purpose = TextAreaField('Purpose', validators=[DataRequired()])
+    return_date = DateField('Return Date', validators=[DataRequired()], format='%Y-%m-%d')
+    submit = SubmitField('Request Item')
+
+class InventoryItemForm(FlaskForm):
+    name = StringField('Item Name', validators=[DataRequired()])
+    amount = StringField('Amount', validators=[DataRequired()])
+    description = TextAreaField('Description')
+    picture = FileField('Item Picture', validators=[])  # admin only upload
+    submit = SubmitField('Save Item')
+
+# New route: user view for inventory requests
+@app.route('/inventory', methods=['GET', 'POST'])
+def inventory():
+    form = InventoryRequestForm()
+    items = InventoryItem.query.all()
+    form.item.choices = [(item.name, item.name) for item in items]
+    if 'item' in request.args:
+        form.item.data = request.args.get('item')
+    # After submission, save user's email in session and query their requests.
+    if form.validate_on_submit():
+        new_req = InventoryRequest(
+            email=form.email.data.strip(),
+            item_name=form.item.data,
+            requested_amount=int(form.requested_amount.data),
+            purpose=form.purpose.data,
+            return_date=form.return_date.data,
+            status='pending'
+        )
+        db.session.add(new_req)
+        db.session.commit()
+        session['inventory_email'] = form.email.data.strip()
+        flash('Your request has been submitted and is pending approval.', 'success')
+        return redirect(url_for('inventory'))
+    # Retrieve user requests if email exists in session.
+    user_requests = []
+    if 'inventory_email' in session:
+        user_requests = InventoryRequest.query.filter_by(email=session['inventory_email']).all()
+    # Compute borrowed count per item.
+    borrowed_counts = {}
+    today = date.today()
+    for item in items:
+        approved_reqs = InventoryRequest.query.filter_by(item_name=item.name, status='approved')\
+                          .filter(InventoryRequest.return_date >= today).all()
+        borrowed_counts[item.id] = sum(req.requested_amount for req in approved_reqs)
+    return render_template('inventory.html',
+                           form=form,
+                           items=items,
+                           borrowed_counts=borrowed_counts,
+                           user_requests=user_requests)
+
+# Modify admin_inventory route to check for unique item name
+@app.route('/admin/inventory', methods=['GET', 'POST'])
+@login_required
+def admin_inventory():
+    form = InventoryItemForm()
+    if form.validate_on_submit():
+        # Check if an item with the same name already exists
+        existing = InventoryItem.query.filter_by(name=form.name.data.strip()).first()
+        if existing:
+            flash('Error: An inventory item with this name already exists.', 'error')
+            return redirect(url_for('admin_inventory'))
+        filename = None
+        if form.picture.data:
+            filename = secure_filename(form.picture.data.filename)
+            inv_folder = os.path.join(BASE_DIR, 'static', 'inventory')
+            if not os.path.exists(inv_folder):
+                os.makedirs(inv_folder)
+            picture_path = os.path.join(inv_folder, filename)
+            form.picture.data.save(picture_path)
+        new_item = InventoryItem(
+            name=form.name.data.strip(),
+            amount=int(form.amount.data),
+            description=form.description.data,
+            picture=filename
+        )
+        db.session.add(new_item)
+        db.session.commit()
+        flash('Inventory item added successfully!', 'success')
+        return redirect(url_for('admin_inventory'))
+    items = InventoryItem.query.all()
+    # Initialize borrowed_counts as 0 for each existing inventory item
+    borrowed_counts = { item.id: 0 for item in items }
+    return render_template('edit_inventory.html', form=form, items=items, borrowed_counts=borrowed_counts)
+
+# New route: admin review inventory requests
+@app.route('/admin/inventory_requests', methods=['GET', 'POST'])
+@login_required
+def admin_inventory_requests():
+    requests_list = InventoryRequest.query.order_by(InventoryRequest.id.desc()).all()
+    # For approval/rejection, we check submitted action via query parameters for simplicity.
+    req_id = request.args.get('id')
+    action = request.args.get('action')
+    if req_id and action:
+        inv_req = InventoryRequest.query.get_or_404(req_id)
+        if action == 'approve':
+            inv_req.status = 'approved'
+        elif action == 'reject':
+            inv_req.status = 'rejected'
+        db.session.commit()
+        return redirect(url_for('admin_inventory_requests'))
+    return render_template('inventory_requests.html', requests=requests_list)
+
+# New route: Edit an existing inventory item (admin only)
+@app.route('/admin/inventory/edit/<int:item_id>', methods=['GET', 'POST'])
+@login_required
+def edit_inventory_item(item_id):
+    item = InventoryItem.query.get_or_404(item_id)
+    form = InventoryItemForm(obj=item)
+    if form.validate_on_submit():
+        item.name = form.name.data
+        item.amount = int(form.amount.data)
+        item.description = form.description.data
+        if form.picture.data:
+            filename = secure_filename(form.picture.data.filename)
+            inv_folder = os.path.join(BASE_DIR, 'static', 'inventory')
+            if not os.path.exists(inv_folder):
+                os.makedirs(inv_folder)
+            picture_path = os.path.join(inv_folder, filename)
+            form.picture.data.save(picture_path)
+            item.picture = filename
+        db.session.commit()
+        flash('Inventory item updated successfully.', 'success')
+        return redirect(url_for('admin_inventory'))
+    return render_template('edit_inventory_item.html', form=form, item=item)
+
+# Optional route: Delete an inventory item (admin only)
+@app.route('/admin/inventory/delete/<int:item_id>', methods=['POST'])
+@login_required
+def delete_inventory_item(item_id):
+    item = InventoryItem.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    flash('Inventory item deleted.', 'success')
+    return redirect(url_for('admin_inventory'))
 
 # Create database tables if they don't exist
 with app.app_context():

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
+<div class="container" >
   <h2 class="mb-4">Room Reservation Calendar</h2>
 
   <!-- Custom Styles for Responsive Timeline -->
@@ -15,7 +15,7 @@
     .timeline-hour {
       position: absolute;
       top: 0;
-      height: 100%;
+      height: 100%;bg-in
       border-left: 1px dashed #ddd;
     }
     .timeline-hour small {
@@ -62,9 +62,9 @@
     }
   </style>
 
-  <div class="container">
+  <div class="container"style="padding-left: 0;padding-right: 0;">
 
-  
+
     <!-- Filter Form -->
     <form method="get" action="{{ url_for('reservations') }}" class="form-inline mb-4">
       {{ filter_form.hidden_tag() }}
@@ -82,29 +82,32 @@
            </div>
       -->
     </form>
-  
-    <!-- 
-         1) HORIZONTAL TIMELINE for MD+ screens 
+
+    <!--
+         1) HORIZONTAL TIMELINE for MD+ screens
             (Bootstrap class: d-none d-md-block)
     -->
 <!-- Mobile Timeline Wrapper -->
-<div class="d-block d-md-none border" style="margin-bottom: 20px; overflow: hidden;">
-  
-  <!-- 1) Left vertical bar for time scale -->
-  <div style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
+
+<div class="d-block d-md-none" style="margin-bottom: 20px; overflow: hidden;">
+  <!-- Mobile Time Labels Container -->
+  <div class="d-block d-md-none" style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
     {% for h in range(0, 25) %}
       {% set top_px = (h / 24) * 2000 %}
       <div style="position: absolute; top: {{ top_px }}px;">
         <small class="text-muted">
-          {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+          {% if h < 24 %}
+            {{ "%02d:00"|format(h) }}
+          {% else %}
+            24:00
+          {% endif %}
         </small>
       </div>
     {% endfor %}
   </div>
 
-  <!-- 2) Calendar lanes to the right -->
-  <div style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa;">
-
+  <!-- Mobile Calendar Container -->
+  <div style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;">
     {% set lane_map = {
       'study_room_b1': 0,
       'study_room_b2': 1,
@@ -126,9 +129,10 @@
         left: calc({{ lane_i }} * 25%);
         width: 25%;
         height: 100%;
-        text-align: center;
+        margin-left: 5px;
+        text-align: left;
         font-size: 1.2rem;
-        color: rgba(0,0,0,0.15);
+        color: rgba(0,0,0,0.4);
         font-weight: bold;
         z-index: 1;
         pointer-events: none;">
@@ -159,14 +163,24 @@
 
       <div class="bg-info text-white rounded p-1"
            style="position: absolute;
-                  left: calc({{ lane_index }} * 25%);
-                  width: 25%;
+                  left: calc({{ lane_index }} * 25% + 1%);
+                  width: 23%;
                   top: {{ top_offset }}px;
                   height: {{ height_px }}px;
                   overflow: hidden;
                   z-index: 3;
                   cursor: pointer;"
-           onclick="showReservationDetail('{{ res.name|escapejs }}', '{{ res.start_time.strftime('%H:%M') }}', '{{ res.end_time.strftime('%H:%M') }}', '{{ res.purpose|escapejs }}')">
+                  onclick="
+                  showReservationDetail(
+                    '{{ res.id }}',
+                    '{{ res.name|escapejs }}',
+                    '{{ res.room|escapejs }}',
+                    '{{ res.start_time.strftime('%Y-%m-%d') }}',
+                    '{{ res.start_time.strftime('%H:%M') }}',
+                    '{{ res.end_time.strftime('%H:%M') }}',
+                    '{{ res.purpose|escapejs }}'
+                  )
+                ">
         <div class="small font-weight-bold">
           {{ res.name }}
         </div>
@@ -178,13 +192,13 @@
   </div>
 </div>
 <!-- Desktop Timeline Wrapper -->
-<div class="d-none d-md-block border" style="margin-bottom: 20px;">
+<div class="d-none d-md-block" style="margin-bottom: 20px;margin-top: 20px;">
 
   <!-- 1) Horizontal time scale at the top -->
-  <div style="position: relative; width: 100%; height: 20px; background: #f8f9fa;">
+  <div style="position: relative; width: 100%; height: 30px;">
     {% for h in range(0, 25) %}
       {% set left = (h / 24) * 100 %}
-      <div style="position: absolute; left: {{ left }}%; top: 0;">
+      <div style="position: absolute; left: {{ left }}%; top: 0;transform: translateX(-50%);">
         <small class="text-muted">
           {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
         </small>
@@ -193,7 +207,7 @@
   </div>
 
   <!-- 2) Calendar (lanes + dashed hour lines + reservations) below the time scale -->
-  <div style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
+ <div class="border" style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
 
     {% set lane_map = {
       'study_room_b1': 0,
@@ -212,12 +226,13 @@
     {% for lane_i, label in lane_labels.items() %}
       <div style="
         position: absolute;
-        top: {{ 30 + lane_i*60 }}px;
+        top: {{ 15 + lane_i*60 }}px;
         left: 0; right: 0;
         height: 50px;
-        text-align: center;
+        text-align: left;
+        margin-left: 5px;
         font-size: 1.2rem;
-        color: rgba(0,0,0,0.15);
+        color: rgba(0, 0, 0, 0.4);
         font-weight: bold;
         z-index: 1;          /* behind lines & reservations */
         pointer-events: none;">
@@ -246,7 +261,7 @@
       {% set left_percent  = (start_minutes / 1440) * 100 %}
       {% set width_percent = (duration / 1440) * 100 %}
       {% set lane_index    = lane_map.get(res.room, 0) %}
-      {% set top_offset    = 30 + (lane_index * 60) %}
+      {% set top_offset    = 15 + (lane_index * 60) %}
 
       <div class="bg-info text-white rounded p-1"
            style="position: absolute;
@@ -257,7 +272,16 @@
                   overflow: hidden;
                   z-index: 3;
                   cursor: pointer;"
-           onclick="showReservationDetail('{{ res.name|escapejs }}', '{{ res.start_time.strftime('%H:%M') }}', '{{ res.end_time.strftime('%H:%M') }}', '{{ res.purpose|escapejs }}')">
+                  onclick="showReservationDetail(
+                    '{{ res.id }}',
+                    '{{ res.name|escapejs }}',
+                    '{{ res.room|escapejs }}',
+                    '{{ res.start_time.strftime('%Y-%m-%d') }}',
+                    '{{ res.start_time.strftime('%H:%M') }}',
+                    '{{ res.end_time.strftime('%H:%M') }}',
+                    '{{ res.purpose|escapejs }}'
+                  )"
+                  >
         <div class="small font-weight-bold">
           {{ res.name }}
         </div>
@@ -270,7 +294,7 @@
 </div>
 
 
-  
+
     <!-- Reservation Form -->
     <div class="card mt-4">
       <div class="card-header">Make a Reservation</div>
@@ -327,16 +351,134 @@
 
 <!-- Add JavaScript function to show popup -->
 <script>
-function showReservationDetail(name, startTime, endTime, purpose) {
-  Swal.fire({
-    title: name,
-    html: "<p><strong>Time:</strong> " + startTime + " - " + endTime + "</p>"
-         + "<p><strong>Purpose:</strong> " + purpose + "</p>",
-    icon: "info",
-    confirmButtonText: "Close"
-  });
-}
-</script>
-
+  function showReservationDetail(resId, name, room, dateVal, startTime, endTime, purpose) {
+    Swal.fire({
+      title: name,
+      icon: 'info',
+      html: `
+        <p><strong>Room:</strong> ${room}</p>
+        <p><strong>Time:</strong> ${startTime} - ${endTime}</p>
+        <p><strong>Purpose:</strong> ${purpose}</p>
+      `,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Edit',
+      denyButtonText: 'Delete',
+      cancelButtonText: 'Close'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // User clicked "Edit"
+        Swal.fire({
+          title: 'Edit Reservation',
+          width: 'fit-content',
+          html: `
+            <table style="width:100%; text-align:left;">
+              <tr>
+                <td style="white-space:nowrap; vertical-align:middle;">
+                  <label for="editName">Name:</label>
+                </td>
+                <td>
+                  <input id="editName" class="swal2-input" value="${name}" />
+                </td>
+              </tr>
+        
+              <tr>
+                <td style="white-space:nowrap; vertical-align:middle;">
+                  <label for="editRoom">Room:</label>
+                </td>
+                <td>
+                  <input id="editRoom" class="swal2-input" value="${room}" />
+                </td>
+              </tr>
+        
+              <tr>
+                <td style="white-space:nowrap; vertical-align:middle;">
+                  <label for="editDate">Date (YYYY-MM-DD):</label>
+                </td>
+                <td>
+                  <input type="date" id="editDate" class="swal2-input" value="${dateVal}" />
+                </td>
+              </tr>
+        
+              <tr>
+                <td style="white-space:nowrap; vertical-align:middle;">
+                  <label for="editStartTime">Start Time (HH:MM):</label>
+                </td>
+                <td>
+                  <input type="time" id="editStartTime" class="swal2-input" value="${startTime}" />
+                </td>
+              </tr>
+        
+              <tr>
+                <td style="white-space:nowrap; vertical-align:middle;">
+                  <label for="editEndTime">End Time (HH:MM):</label>
+                </td>
+                <td>
+                  <input type="time" id="editEndTime" class="swal2-input" value="${endTime}" />
+                </td>
+              </tr>
+        
+              <tr>
+                <td style="white-space:nowrap; vertical-align:top;">
+                  <label for="editPurpose">Purpose:</label>
+                </td>
+                <td>
+                  <textarea id="editPurpose" class="swal2-textarea" rows="3"
+                            style="width:80%;">${purpose}</textarea>
+                </td>
+              </tr>
+            </table>
+          `,
+          focusConfirm: false,
+          preConfirm: () => {
+            return {
+              name:       document.getElementById('editName').value,
+              room:       document.getElementById('editRoom').value,
+              date:       document.getElementById('editDate').value,
+              start_time: document.getElementById('editStartTime').value,
+              end_time:   document.getElementById('editEndTime').value,
+              purpose:    document.getElementById('editPurpose').value
+            };
+          }
+        }).then((editResult) => {
+          if (editResult.isConfirmed) {
+            // Send the updated data to /update_reservation/<resId>
+            fetch('/update_reservation/' + resId, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(editResult.value)
+            })
+            .then(res => res.json())
+            .then(resp => {
+              if (resp.success) {
+                Swal.fire('Updated!', 'Reservation updated successfully.', 'success')
+                  .then(() => { location.reload(); });
+              } else {
+                Swal.fire('Error', resp.error || 'Update failed', 'error');
+              }
+            })
+            .catch(err => {
+              Swal.fire('Error', 'Update failed', 'error');
+            });
+          }
+        });
+  
+      } else if (result.isDenied) {
+        // User clicked "Delete"
+        fetch('/delete_reservation/' + resId, {
+          method: 'POST'
+        })
+        .then(() => {
+          Swal.fire('Deleted!', 'Reservation has been deleted.', 'success')
+            .then(() => { location.reload(); });
+        })
+        .catch(err => {
+          Swal.fire('Error', 'Delete failed', 'error');
+        });
+      }
+    });
+  }
+  </script>
+  
   {% endblock %}
 

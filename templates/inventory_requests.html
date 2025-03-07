@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Inventory Requests (Admin)</h2>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Email</th>
+        <th>Item</th>
+        <th>Amount</th>
+        <th>Purpose</th>
+        <th>Return Date</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requests %}
+      <tr>
+        <td>{{ req.id }}</td>
+        <td>{{ req.email }}</td>
+        <td>{{ req.item_name }}</td>
+        <td>{{ req.requested_amount }}</td>
+        <td>{{ req.purpose }}</td>
+        <td>{{ req.return_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ req.status }}</td>
+        <td>
+          {% if req.status == 'pending' %}
+          <a href="{{ url_for('admin_inventory_requests', id=req.id, action='approve') }}" class="btn btn-sm btn-success">Approve</a>
+          <a href="{{ url_for('admin_inventory_requests', id=req.id, action='reject') }}" class="btn btn-sm btn-danger">Reject</a>
+          {% else %}
+          No action
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

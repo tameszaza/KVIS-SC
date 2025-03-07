@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h2>Manage Inventory Items</h2>
+  <form method="post" action="{{ url_for('admin_inventory') }}" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.name.label }} {{ form.name(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.amount.label }} {{ form.amount(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.description.label }} {{ form.description(class="form-control", rows="3") }}
+    </div>
+    <div class="form-group">
+      {{ form.picture.label }} {{ form.picture(class="form-control-file") }}
+    </div>
+    <button type="submit" class="btn btn-success">{{ form.submit.label.text }}</button>
+  </form>
+  <hr>
+  <h4>Existing Items</h4>
+  <ul>
+    {% for item in items %}
+      <li>
+        <strong>{{ item.name }}</strong> - <em>{{ borrowed_counts[item.id] or 0 }}/{{ item.amount }}</em>
+        {% if item.picture %}
+          <img src="{{ url_for('static', filename='inventory/' ~ item.picture) }}" alt="{{ item.name }}" style="max-width:100px;">
+        {% endif %}
+        <a href="{{ url_for('edit_inventory_item', item_id=item.id) }}" class="btn btn-sm btn-warning">Edit</a>
+        <form method="post" action="{{ url_for('delete_inventory_item', item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Remove this item?');">
+          <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
