@@ -383,6 +383,11 @@ def reservations():
         start_dt_new = datetime.combine(res_date, reservation_form.start_time.data)
         end_dt_new   = datetime.combine(res_date, reservation_form.end_time.data)
 
+        # Add error handling for unnatural times
+        if start_dt_new >= end_dt_new:
+            flash("End time must be after the start time.", "danger")
+            return redirect(url_for('reservations'))
+
         # Check for overlapping reservation conflict
         conflict = Reservation.query.filter(
             Reservation.room == reservation_form.room.data,
