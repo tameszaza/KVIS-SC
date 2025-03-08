@@ -1,0 +1,9 @@
+# Configure SQLAlchemy for reservations database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://kvisscit:hellotest@kvisscit.mysql.pythonanywhere-services.com/kvisscit$default'
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+# Define the base directory
+
+# Define the base directory
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))

@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container" >
-  <h2 class="mb-4">Room Reservation Calendar</h2>
+<h2 class="mb-4">
+    Room Reservation Calendar
+    <span style="font-size: 0.8em; opacity: 0.6;">version 1.0</span>
+</h2>
+
 
   <!-- Custom Styles for Responsive Timeline -->
   <style>
@@ -381,7 +385,7 @@
                   <input id="editName" class="swal2-input" value="${name}" />
                 </td>
               </tr>
-        
+
               <tr>
                 <td style="white-space:nowrap; vertical-align:middle;">
                   <label for="editRoom">Room:</label>
@@ -390,7 +394,7 @@
                   <input id="editRoom" class="swal2-input" value="${room}" />
                 </td>
               </tr>
-        
+
               <tr>
                 <td style="white-space:nowrap; vertical-align:middle;">
                   <label for="editDate">Date (YYYY-MM-DD):</label>
@@ -399,7 +403,7 @@
                   <input type="date" id="editDate" class="swal2-input" value="${dateVal}" />
                 </td>
               </tr>
-        
+
               <tr>
                 <td style="white-space:nowrap; vertical-align:middle;">
                   <label for="editStartTime">Start Time (HH:MM):</label>
@@ -408,7 +412,7 @@
                   <input type="time" id="editStartTime" class="swal2-input" value="${startTime}" />
                 </td>
               </tr>
-        
+
               <tr>
                 <td style="white-space:nowrap; vertical-align:middle;">
                   <label for="editEndTime">End Time (HH:MM):</label>
@@ -417,7 +421,7 @@
                   <input type="time" id="editEndTime" class="swal2-input" value="${endTime}" />
                 </td>
               </tr>
-        
+
               <tr>
                 <td style="white-space:nowrap; vertical-align:top;">
                   <label for="editPurpose">Purpose:</label>
@@ -462,7 +466,7 @@
             });
           }
         });
-  
+
       } else if (result.isDenied) {
         // User clicked "Delete"
         fetch('/delete_reservation/' + resId, {
@@ -479,6 +483,6 @@
     });
   }
   </script>
-  
+
   {% endblock %}
 

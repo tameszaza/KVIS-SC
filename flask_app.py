@@ -9,28 +9,58 @@ from wtforms import StringField, TextAreaField, FileField, SubmitField
 from wtforms.validators import DataRequired
 from wtforms.fields import DateField, TimeField, SelectField
 from markupsafe import Markup
-import os
 import json
 import shutil
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, time
-from PIL import Image  # new import 
+from PIL import Image  # new import
 import secrets  # for secure state generation
 from flask_wtf.file import FileField  # already imported? if not, add this
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from email_utils import *
+# from email_utils import *
+import msal  # added import for Microsoft authentication
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
 
 # Configure SQLAlchemy for reservations database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservations.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+# Define the base directory
 
+# Define the base directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+# Add Microsoft OAuth configuration
+app.config["MS_CLIENT_ID"] = "96fca20e-7d9c-4002-8e14-c8716b69ef90"
+# with the environment variable value:
+app.config["MS_CLIENT_SECRET"] = os.getenv("MS_CLIENT_SECRET")
+app.config["MS_TENANT_ID"] = "e9c554b7-2aec-4238-9b8e-372753d596ae"
+app.config["MS_AUTHORITY"] = "https://login.microsoftonline.com/" + app.config["MS_TENANT_ID"]
+app.config["MS_REDIRECT_PATH"] = "/user/authorized"  # Must match the registered redirect URI
+app.config["MS_SCOPE"] = ["User.Read"]
+
+# Helper functions for MSAL
+def _build_msal_app(cache=None, authority=None):
+    return msal.ConfidentialClientApplication(
+        app.config["MS_CLIENT_ID"],
+        authority=authority or app.config["MS_AUTHORITY"],
+        client_credential=app.config["MS_CLIENT_SECRET"],
+        token_cache=cache
+    )
+
+def _build_auth_url():
+    msal_app = _build_msal_app()
+    return msal_app.get_authorization_request_url(
+        scopes=app.config["MS_SCOPE"],
+        redirect_uri=url_for("authorized", _external=True)
+    )
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -569,41 +599,46 @@ class UserRegisterForm(FlaskForm):
     submit = SubmitField('Register')
 
 # New routes for user registration, login, and logout
-@app.route('/user/register', methods=['GET', 'POST'])
-def user_register():
-    form = UserRegisterForm()
-    if form.validate_on_submit():
-        if InventoryUser.query.filter_by(email=form.email.data.strip()).first():
-            flash("Email already registered", "error")
-            return redirect(url_for('user_register'))
-        new_user = InventoryUser(
-            email=form.email.data.strip(),
-            password=generate_password_hash(form.password.data)
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        flash("Registration successful, please login", "success")
-        return redirect(url_for('user_login'))
-    return render_template('user_register.html', form=form)
+@app.route("/user/microsoft_login")
+def microsoft_login():
+    auth_url = _build_auth_url()
+    return redirect(auth_url)
 
-@app.route('/user/login', methods=['GET', 'POST'])
+@app.route("/user/authorized")
+def authorized():
+    if "code" not in request.args:
+        flash("Authorization failed.", "error")
+        return redirect(url_for("user_login"))
+    cache = msal.SerializableTokenCache()
+    msal_app = _build_msal_app(cache=cache)
+    result = msal_app.acquire_token_by_authorization_code(
+        request.args["code"],
+        scopes=app.config["MS_SCOPE"],
+        redirect_uri=url_for("authorized", _external=True)
+    )
+    if "error" in result:
+        flash("Login failed: " + result.get("error_description", ""), "error")
+        return redirect(url_for("user_login"))
+    session["inventory_user"] = result["id_token_claims"].get("email") or result["id_token_claims"].get("preferred_username")
+    flash("Logged in successfully via Microsoft.", "success")
+    return redirect(url_for("inventory"))
+
+@app.route("/user/ms_logout")
+def ms_logout():
+    # Clear only the local session without redirecting to Microsoft's logout URL, then redirect to home
+    session.clear()
+    return redirect(url_for("home"))
+
+# Modify existing user login route to use Microsoft SSO
+@app.route('/user/login', methods=['GET'])
 def user_login():
-    form = UserLoginForm()
-    if form.validate_on_submit():
-        user = InventoryUser.query.filter_by(email=form.email.data.strip()).first()
-        if user and check_password_hash(user.password, form.password.data):
-            session['inventory_user'] = user.email
-            flash("Logged in successfully", "success")
-            return redirect(url_for('inventory'))
-        else:
-            flash("Invalid credentials", "error")
-    return render_template('user_login.html', form=form)
+    return redirect(url_for("microsoft_login"))
 
-@app.route('/user/logout')
-def user_logout():
-    session.pop('inventory_user', None)
-    flash("Logged out successfully", "success")
-    return redirect(url_for('user_login'))
+# Optionally disable the registration route since Microsoft SSO is used
+# @app.route('/user/register', methods=['GET', 'POST'])
+# def user_register():
+#     # ...existing registration code (disabled)...
+#     pass
 
 # Modify existing /inventory route to require user login
 @app.route('/inventory', methods=['GET', 'POST'])
@@ -611,15 +646,15 @@ def inventory():
     if 'inventory_user' not in session:
         flash("Please login to make a request", "error")
         return redirect(url_for('user_login'))
-    
+
     form = InventoryRequestForm()
     form.email.data = session['inventory_user']
     items = InventoryItem.query.all()
     form.item.choices = [(item.name, item.name) for item in items]
-    
+
     if 'item' in request.args:
         form.item.data = request.args.get('item')
-    
+
     if form.validate_on_submit():
         new_req = InventoryRequest(
             email=session['inventory_user'],
@@ -633,9 +668,9 @@ def inventory():
         db.session.commit()
         flash('Your request has been submitted and is pending approval.', 'success')
         return redirect(url_for('inventory'))
-    
+
     today_date = date.today()  # Get today's date
-    
+
     user_requests = InventoryRequest.query.filter_by(email=session['inventory_user']).all()
     borrowed_counts = {}
     for item in items:
@@ -645,7 +680,7 @@ def inventory():
             InventoryRequest.return_date >= today_date
         ).all()
         borrowed_counts[item.id] = sum(req.requested_amount for req in approved_reqs)
-    
+
     return render_template('inventory.html',
                            form=form,
                            items=items,
@@ -713,7 +748,7 @@ def admin_inventory_requests():
     if req_id and action:
         inv_req = InventoryRequest.query.get_or_404(req_id)
         item = InventoryItem.query.filter_by(name=inv_req.item_name).first()
-        
+
         if action == 'approve':
             # Check if approving this request exceeds available items
             approved_reqs = InventoryRequest.query.filter(
@@ -721,7 +756,7 @@ def admin_inventory_requests():
                 InventoryRequest.status == 'approved'
             ).all()
             borrowed_count = sum(req.requested_amount for req in approved_reqs)
-            
+
             if borrowed_count + inv_req.requested_amount > item.amount:
                 flash("Cannot approve: Borrowed amount exceeds available inventory.", "danger")
                 return redirect(url_for('admin_inventory_requests'))
@@ -729,15 +764,15 @@ def admin_inventory_requests():
             inv_req.status = 'approved'
             subject = "Your inventory request was approved!"
             body = f"Hello,\n\nYour request for '{inv_req.item_name}' has been approved."
-        
+
         elif action == 'reject':
             inv_req.status = 'rejected'
             subject = "Your inventory request was rejected"
             body = f"Hello,\n\nYour request for '{inv_req.item_name}' has been rejected."
-        
+
         db.session.commit()
         return redirect(url_for('admin_inventory_requests'))
-    
+
     return render_template('inventory_requests.html', requests=requests_list)
 
 # New route: Edit an existing inventory item (admin only)
@@ -775,7 +810,7 @@ def delete_inventory_item(item_id):
 
 # Create database tables if they don't exist
 with app.app_context():
-    init_mail(app)
+    # init_mail(app)
     db.create_all()
 
 @app.template_filter('escapejs')
@@ -808,4 +843,3 @@ def cancel_request(req_id):
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)
-

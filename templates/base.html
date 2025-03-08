@@ -7,8 +7,6 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <!-- Font Awesome CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <title>KVIS-SC</title>
 </head>
 <body>
@@ -25,7 +23,7 @@
                 <a href="{{ url_for('news_overview') }}" class="text-white mr-3">News</a>
                 <a href="{{ url_for('inventory') }}" class="text-white mr-3">Inventory</a>
                 {% if session.get('inventory_user') %}
-                  <a href="{{ url_for('user_logout') }}" class="text-white mr-3">Logout</a>
+                  <a href="{{ url_for('ms_logout') }}" class="text-white mr-3">Logout</a>
                 {% else %}
                   <a href="{{ url_for('user_login') }}" class="text-white mr-3">Login</a>
                 {% endif %}
