@@ -39,7 +39,7 @@
     }
   </style>
   <div class="container">
-    <h2 class="my-4">Comment Box 2024</h2>
+    <h2 class="my-4">Comment Box <span style="font-size: 0.8em; opacity: 0.6;">Version 0.0</span></h2>
     <p>This form is for reporting issues and comments within the school by the Student Committee on Student Affairs.</p>
     <!-- Wrap the comment form inside a Bootstrap card for a prettier look -->
     <div class="card card-body mb-4">
@@ -129,6 +129,22 @@
       </form>
     </div>
     
+    <!-- Grouping Buttons -->
+    <div class="mb-4">
+      <h5>Filter by Category:</h5>
+      <a href="{{ url_for('comments', filter_category='All', filter_progress=filter_progress) }}" class="btn btn-sm btn-outline-primary {% if filter_category=='All' %}active{% endif %}">All</a>
+      {% for cat in categories %}
+        <a href="{{ url_for('comments', filter_category=cat, filter_progress=filter_progress) }}" class="btn btn-sm btn-outline-primary {% if filter_category==cat %}active{% endif %}">{{ cat }}</a>
+      {% endfor %}
+    </div>
+    <div class="mb-4">
+      <h5>Filter by Latest Admin Reply Status:</h5>
+      <a href="{{ url_for('comments', filter_category=filter_category, filter_progress='All') }}" class="btn btn-sm btn-outline-secondary {% if filter_progress=='All' %}active{% endif %}">All</a>
+      {% for prog in progress_groups %}
+        <a href="{{ url_for('comments', filter_category=filter_category, filter_progress=prog) }}" class="btn btn-sm btn-outline-secondary {% if filter_progress==prog %}active{% endif %}">{{ prog }}</a>
+      {% endfor %}
+    </div>
+    
     <hr>
     
     <h3>Existing Comments</h3>
@@ -177,13 +193,18 @@
                           <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                         {% endif %}
                       </p>
-                      <p>Replied at: {{ reply.reply_time|local_time }}</p>
                       {% if reply.admin_image %}
                         <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
                              alt="Reply Evidence"
                              class="reply-thumbnail"
                              style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
                       {% endif %}
+                      <!-- New reply timestamp block -->
+                      <div style="position: relative; min-height: 1.2em;">
+                        <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
+                          Replied at: {{ reply.reply_time|local_time }}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

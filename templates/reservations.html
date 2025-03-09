@@ -111,7 +111,7 @@
   </div>
 
   <!-- Mobile Calendar Container -->
-  <div style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;">
+  <div id="mobileTimeline" style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;">
     {% set lane_map = {
       'study_room_b1': 0,
       'study_room_b2': 1,
@@ -211,7 +211,7 @@
   </div>
 
   <!-- 2) Calendar (lanes + dashed hour lines + reservations) below the time scale -->
- <div class="border" style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
+ <div id="desktopTimeline" class="border" style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
 
     {% set lane_map = {
       'study_room_b1': 0,
@@ -483,6 +483,44 @@
     });
   }
   </script>
+
+<!-- New JavaScript block to add current time markers on current day only -->
+<script>
+  (function(){
+    var selectedDate = "{{ selected_date }}";
+    var today = new Date().toISOString().slice(0,10);
+    if(selectedDate === today) {
+       var now = new Date();
+       var minutes = now.getHours() * 60 + now.getMinutes();
+       
+       // Add marker to mobile timeline (container height: 2000px)
+       var mobileContainer = document.getElementById("mobileTimeline");
+       if(mobileContainer) {
+         var mobileMarker = document.createElement("div");
+         mobileMarker.style.position = "absolute";
+         mobileMarker.style.left = "0";
+         mobileMarker.style.width = "100%";
+         mobileMarker.style.height = "2px";
+         mobileMarker.style.background = "rgba(255,0,0,0.5)";
+         mobileMarker.style.top = ((minutes / 1440) * 2000) + "px";
+         mobileContainer.appendChild(mobileMarker);
+       }
+       
+       // Add marker to desktop timeline (marker as vertical line across container)
+       var desktopContainer = document.getElementById("desktopTimeline");
+       if(desktopContainer) {
+         var desktopMarker = document.createElement("div");
+         desktopMarker.style.position = "absolute";
+         desktopMarker.style.top = "0";
+         desktopMarker.style.bottom = "0";
+         desktopMarker.style.width = "2px";
+         desktopMarker.style.background = "rgba(255,0,0,0.5)";
+         desktopMarker.style.left = ((minutes / 1440) * 100) + "%";
+         desktopContainer.appendChild(desktopMarker);
+       }
+    }
+  })();
+</script>
 
   {% endblock %}
 

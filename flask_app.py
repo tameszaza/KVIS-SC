@@ -894,6 +894,14 @@ class CommentBoxForm(FlaskForm):
         ('Grade 11','Grade 11'),
         ('Teacher & Personnel','Teacher & Personnel')
     ])
+    category = SelectField('Category', choices=[
+        ('General','General'),
+        ('IT','IT'),
+        ('Sport','Sport'),
+        ('Artistic Event','Artistic Event'),
+        ('Student Affair','Student Affair'),
+        ('PR','PR')
+    ], default='General')
     problem_comment = TextAreaField('Problem or Comment', validators=[DataRequired()])
     urgency = IntegerField('Urgency', validators=[DataRequired()], default=5)
     suggested_solution = TextAreaField('Suggested Solution (Optional)')
@@ -923,30 +931,73 @@ def comments():
         new_comment = Comment(
             content=content,
             urgency=form.urgency.data,  # Store urgency separately
-            category="General",  # Adjust as needed
+            category=form.category.data,  # Adjust as needed
             evidence=evidence_filename
         )
         db.session.add(new_comment)
         db.session.commit()
         flash("Comment posted anonymously!", "success")
         return redirect(url_for('comments'))
-    filter_cat = request.args.get('filter_category', 'All')
-    if filter_cat == 'All':
-        all_comments = Comment.query.order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
-    else:
-        all_comments = Comment.query.filter_by(category=filter_cat)\
-                                      .order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
-    return render_template('comments.html', form=form, comments=all_comments)
+    
+    # NEW: Filtering by category and by progress (latest admin reply status)
+    filter_category = request.args.get('filter_category', 'All')
+    filter_progress = request.args.get('filter_progress', 'All')
+    all_comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    
+    # Helper: get latest status for a comment
+    def get_latest_status(comment):
+        if comment.replies:
+            return max(comment.replies, key=lambda r: r.reply_time).admin_status
+        return "No Reply"
+    
+    # Filter by category if needed
+    if filter_category != 'All':
+        all_comments = [c for c in all_comments if c.category == filter_category]
+    
+    # Filter by progress if needed
+    if filter_progress != 'All':
+        all_comments = [c for c in all_comments if get_latest_status(c) == filter_progress]
+    
+    # Build available groups from all comments (without filtering)
+    categories = set(c.category for c in Comment.query.all())
+    progress_set = set()
+    for c in Comment.query.all():
+        progress_set.add(get_latest_status(c))
+    
+    return render_template('comments.html', form=form, comments=all_comments,
+                           filter_category=filter_category, filter_progress=filter_progress,
+                           categories=sorted(categories), progress_groups=sorted(progress_set))
 
 # Admin route for managing comments (reply or delete)
 @app.route('/admin/comments', methods=['GET', 'POST'])
 @login_required
 def admin_comments():
+    # Get filtering parameters for category and reply status
     filter_cat = request.args.get('filter_category', 'All')
+    filter_progress = request.args.get('filter_progress', 'All')
+    
+    # Fetch comments based on category filter first
     if filter_cat == 'All':
         comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
     else:
         comments_list = Comment.query.filter_by(category=filter_cat).order_by(Comment.created_at.desc()).all()
+    
+    # Helper: get latest reply status for a comment
+    def get_latest_status(comment):
+        if comment.replies:
+            return max(comment.replies, key=lambda r: r.reply_time).admin_status
+        return "No Reply"
+    
+    # Filter comments by latest reply status if needed
+    if filter_progress != 'All':
+        comments_list = [c for c in comments_list if get_latest_status(c) == filter_progress]
+    
+    # Build progress groups from all comments for the filter UI
+    all_comments = Comment.query.all()
+    progress_groups = set(get_latest_status(c) for c in all_comments)
+    progress_groups = sorted(progress_groups)
+    
+    # Process POST actions (reply or delete)
     if request.method == 'POST':
         comment_id = request.form.get('comment_id')
         action = request.form.get('action')
@@ -954,7 +1005,7 @@ def admin_comments():
         if action == 'reply':
             reply_text = request.form.get('reply')
             new_status = request.form.get('status')
-            reply_id = request.form.get('reply_id')  # Optional: provided if editing an existing reply
+            reply_id = request.form.get('reply_id')  # If editing an existing reply
             reply_image = request.files.get('reply_image')
             if reply_id:
                 # Edit existing reply
@@ -971,7 +1022,7 @@ def admin_comments():
                     compress_and_save_image(reply_image, image_path, image_path)
                     reply.admin_image = filename
             else:
-                # Create new reply
+                # Create a new reply
                 new_reply = CommentReply(comment_id=comment.id, reply_text=reply_text, admin_status=new_status)
                 if reply_image and reply_image.filename:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
@@ -984,8 +1035,6 @@ def admin_comments():
                 db.session.add(new_reply)
             flash("Reply saved.", "success")
         elif action == 'delete':
-            # For simplicity, delete all replies for this comment (or adjust to delete a specific reply)
-            # Here we delete a reply if reply_id is provided, otherwise delete the entire comment.
             reply_id = request.form.get('reply_id')
             if reply_id:
                 reply = CommentReply.query.get(reply_id)
@@ -994,8 +1043,13 @@ def admin_comments():
                 db.session.delete(comment)
             flash("Deleted.", "success")
         db.session.commit()
-        return redirect(url_for('admin_comments', filter_category=filter_cat))
-    return render_template('admin_comments.html', comments=comments_list, filter_category=filter_cat)
+        return redirect(url_for('admin_comments', filter_category=filter_cat, filter_progress=filter_progress))
+    
+    return render_template('admin_comments.html', 
+                           comments=comments_list, 
+                           filter_category=filter_cat, 
+                           filter_progress=filter_progress,
+                           progress_groups=progress_groups)
 
 # New route to upvote a comment
 @app.route('/comment/upvote/<int:comment_id>', methods=['POST'])
