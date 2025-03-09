@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="container">
+    <h2>Comments</h2>
+    <form method="post">
+      {{ form.hidden_tag() }}
+      <div class="form-group">
+        {{ form.content.label }} 
+        {{ form.content(class="form-control") }}
+      </div>
+      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </form>
+    <hr>
+    <h4>All Comments</h4>
+    {% for comment in comments %}
+      <div class="card my-2">
+        <div class="card-body">
+          <p class="card-text">{{ comment.content }}</p>
+          <small class="text-muted">Posted on {{ comment.created_at|local_time }}</small>
+          <br>
+          <small class="text-muted">Upvotes: {{ comment.upvotes }}</small>
+          <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Upvote</button>
+          </form>
+          {% if comment.admin_reply %}
+            <div class="alert alert-info mt-2">Admin Reply: {{ comment.admin_reply }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

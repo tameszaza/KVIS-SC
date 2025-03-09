@@ -12,7 +12,7 @@ from markupsafe import Markup
 import json
 import shutil
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from PIL import Image  # new import
 import secrets  # for secure state generation
 from flask_wtf.file import FileField  # already imported? if not, add this
@@ -829,6 +829,13 @@ def escapejs_filter(s):
     # json.dumps returns a quoted string; remove outer quotes.
     return json.dumps(s)[1:-1]
 
+from datetime import timedelta
+@app.template_filter('local_time')
+def local_time_filter(utc_dt):
+    if utc_dt is None:
+        return ""
+    return (utc_dt + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M')
+
 # New route: Allow a signed-in user to cancel a pending request.
 @app.route('/user/cancel_request/<int:req_id>', methods=['POST'], endpoint='cancel_request')
 def cancel_request(req_id):
@@ -847,6 +854,70 @@ def cancel_request(req_id):
     db.session.commit()
     flash("Request cancelled successfully", "success")
     return redirect(url_for('inventory'))
+
+# --- New: Comment System ---
+from wtforms import TextAreaField
+from datetime import datetime
+
+# New SQLAlchemy model for Comments
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    admin_reply = db.Column(db.Text)  # Optional reply from admin
+    upvotes = db.Column(db.Integer, default=0)  # NEW: upvote counter
+
+    def __repr__(self):
+        return f"<Comment {self.id}>"
+
+# New WTForm for posting a comment
+class CommentForm(FlaskForm):
+    content = TextAreaField('Your Comment', validators=[DataRequired()])
+    submit = SubmitField('Post Comment')
+
+# Public route for viewing and posting comments
+@app.route('/comments', methods=['GET', 'POST'])
+def comments():
+    form = CommentForm()
+    if form.validate_on_submit():
+        new_comment = Comment(content=form.content.data)
+        db.session.add(new_comment)
+        db.session.commit()
+        flash("Comment posted anonymously!", "success")
+        return redirect(url_for('comments'))
+    # Order by upvote count descending, then by created_at descending
+    all_comments = Comment.query.order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
+    return render_template('comments.html', form=form, comments=all_comments)
+
+# Admin route for managing comments (reply or delete)
+@app.route('/admin/comments', methods=['GET', 'POST'])
+@login_required
+def admin_comments():
+    comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
+    # For simplicity, assume admin reply is submitted via query parameters
+    # In production use a dedicated form/modal for each comment.
+    if request.method == 'POST':
+        comment_id = request.form.get('comment_id')
+        action = request.form.get('action')
+        comment = Comment.query.get_or_404(comment_id)
+        if action == 'reply':
+            reply_text = request.form.get('reply')
+            comment.admin_reply = reply_text
+            flash("Replied to comment.", "success")
+        elif action == 'delete':
+            db.session.delete(comment)
+            flash("Comment deleted.", "success")
+        db.session.commit()
+        return redirect(url_for('admin_comments'))
+    return render_template('admin_comments.html', comments=comments_list)
+
+# New route to upvote a comment
+@app.route('/comment/upvote/<int:comment_id>', methods=['POST'])
+def upvote_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    comment.upvotes += 1
+    db.session.commit()
+    return redirect(url_for('comments'))
 
 
 if __name__ == '__main__':
