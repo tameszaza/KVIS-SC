@@ -722,7 +722,8 @@ def admin_inventory():
             if not os.path.exists(inv_folder):
                 os.makedirs(inv_folder)
             picture_path = os.path.join(inv_folder, filename)
-            form.picture.data.save(picture_path)
+            # Compress and save image just like news
+            compress_and_save_image(form.picture.data, picture_path, picture_path)
         new_item = InventoryItem(
             name=form.name.data.strip(),
             amount=int(form.amount.data),
@@ -791,7 +792,8 @@ def edit_inventory_item(item_id):
             if not os.path.exists(inv_folder):
                 os.makedirs(inv_folder)
             picture_path = os.path.join(inv_folder, filename)
-            form.picture.data.save(picture_path)
+            # Compress and save image just like news
+            compress_and_save_image(form.picture.data, picture_path, picture_path)
             item.picture = filename
         db.session.commit()
         flash('Inventory item updated successfully.', 'success')
@@ -803,9 +805,15 @@ def edit_inventory_item(item_id):
 @login_required
 def delete_inventory_item(item_id):
     item = InventoryItem.query.get_or_404(item_id)
+    # Remove image file if exists
+    if item.picture:
+        inv_folder = os.path.join(BASE_DIR, 'static', 'inventory')
+        picture_path = os.path.join(inv_folder, item.picture)
+        if os.path.exists(picture_path):
+            os.remove(picture_path)
     db.session.delete(item)
     db.session.commit()
-    flash('Inventory item deleted.', 'success')
+    flash('Inventory item and its image deleted.', 'success')
     return redirect(url_for('admin_inventory'))
 
 # Create database tables if they don't exist
