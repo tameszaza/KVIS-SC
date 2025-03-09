@@ -5,7 +5,7 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, abort, session, jsonify  # add session import if not already imported
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, FileField, SubmitField
+from wtforms import StringField, TextAreaField, FileField, SubmitField, IntegerField
 from wtforms.validators import DataRequired
 from wtforms.fields import DateField, TimeField, SelectField
 from markupsafe import Markup
@@ -859,57 +859,141 @@ def cancel_request(req_id):
 from wtforms import TextAreaField
 from datetime import datetime
 
-# New SQLAlchemy model for Comments
+# Modify Comment model by removing admin_reply fields and adding a replies relationship
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    admin_reply = db.Column(db.Text)  # Optional reply from admin
-    upvotes = db.Column(db.Integer, default=0)  # NEW: upvote counter
-
+    category = db.Column(db.String(50), default='General')
+    upvotes = db.Column(db.Integer, default=0)
+    # NEW: Add a column to store evidence filename
+    evidence = db.Column(db.String(200))
+    # NEW: relationship for multiple admin replies
+    replies = db.relationship('CommentReply', backref='comment', lazy=True)
     def __repr__(self):
         return f"<Comment {self.id}>"
 
-# New WTForm for posting a comment
-class CommentForm(FlaskForm):
-    content = TextAreaField('Your Comment', validators=[DataRequired()])
-    submit = SubmitField('Post Comment')
+# NEW: Model to store multiple admin replies per comment
+class CommentReply(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=False)
+    reply_text = db.Column(db.Text, nullable=False)
+    admin_status = db.Column(db.String(50), default='coordinating')  # changed default from 'รับเรื่อง'
+    admin_image = db.Column(db.String(200))
+    reply_time = db.Column(db.DateTime, default=datetime.utcnow)
+    def __repr__(self):
+        return f"<Reply {self.id} for Comment {self.comment_id}>"
 
-# Public route for viewing and posting comments
+# Modified Comment System: Replace CommentForm with CommentBoxForm
+class CommentBoxForm(FlaskForm):
+    full_name = StringField('Full Name (Optional)')
+    status = SelectField('Status', choices=[
+        ('Grade 9','Grade 9'),
+        ('Grade 10','Grade 10'),
+        ('Grade 11','Grade 11'),
+        ('Teacher & Personnel','Teacher & Personnel')
+    ])
+    problem_comment = TextAreaField('Problem or Comment', validators=[DataRequired()])
+    urgency = IntegerField('Urgency', validators=[DataRequired()], default=5)
+    suggested_solution = TextAreaField('Suggested Solution (Optional)')
+    evidence = FileField('Evidence of Cases (Optional)')
+    contact = StringField('Contact (Optional)')
+    submit = SubmitField('Submit')
+
+# Updated public route using CommentBoxForm instead of CommentForm
 @app.route('/comments', methods=['GET', 'POST'])
 def comments():
-    form = CommentForm()
+    form = CommentBoxForm()  # Changed here
     if form.validate_on_submit():
-        new_comment = Comment(content=form.content.data)
+        # Process the evidence file if uploaded.
+        evidence_filename = None
+        if form.evidence.data and form.evidence.data.filename:
+            uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            evidence_filename = secure_filename(form.evidence.data.filename)
+            file_path = os.path.join(uploads_dir, evidence_filename)
+            compress_and_save_image(form.evidence.data, file_path, file_path)
+        # Combine the fields into comment content
+        content = ("From: " + (form.full_name.data or "Anonymous") + " (" + form.status.data + ")\n" +
+                   "Problem/Comment: " + form.problem_comment.data + "\n" +
+                   "Urgency: " + str(form.urgency.data) + "\n" +
+                   "Suggested: " + (form.suggested_solution.data or "N/A") + "\n" +
+                   "Contact: " + (form.contact.data or "N/A"))
+        new_comment = Comment(
+            content=content,
+            category="General",  # Adjust as needed
+            evidence=evidence_filename  # Save the filename (if any)
+        )
         db.session.add(new_comment)
         db.session.commit()
         flash("Comment posted anonymously!", "success")
         return redirect(url_for('comments'))
-    # Order by upvote count descending, then by created_at descending
-    all_comments = Comment.query.order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
+    filter_cat = request.args.get('filter_category', 'All')
+    if filter_cat == 'All':
+        all_comments = Comment.query.order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
+    else:
+        all_comments = Comment.query.filter_by(category=filter_cat).order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
     return render_template('comments.html', form=form, comments=all_comments)
 
 # Admin route for managing comments (reply or delete)
 @app.route('/admin/comments', methods=['GET', 'POST'])
 @login_required
 def admin_comments():
-    comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
-    # For simplicity, assume admin reply is submitted via query parameters
-    # In production use a dedicated form/modal for each comment.
+    filter_cat = request.args.get('filter_category', 'All')
+    if filter_cat == 'All':
+        comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
+    else:
+        comments_list = Comment.query.filter_by(category=filter_cat).order_by(Comment.created_at.desc()).all()
     if request.method == 'POST':
         comment_id = request.form.get('comment_id')
         action = request.form.get('action')
         comment = Comment.query.get_or_404(comment_id)
         if action == 'reply':
             reply_text = request.form.get('reply')
-            comment.admin_reply = reply_text
-            flash("Replied to comment.", "success")
+            new_status = request.form.get('status')
+            reply_id = request.form.get('reply_id')  # Optional: provided if editing an existing reply
+            reply_image = request.files.get('reply_image')
+            if reply_id:
+                # Edit existing reply
+                reply = CommentReply.query.get(reply_id)
+                reply.reply_text = reply_text
+                reply.admin_status = new_status
+                reply.reply_time = datetime.utcnow()
+                if reply_image and reply_image.filename:
+                    uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+                    if not os.path.exists(uploads_dir):
+                        os.makedirs(uploads_dir)
+                    filename = secure_filename(reply_image.filename)
+                    image_path = os.path.join(uploads_dir, filename)
+                    compress_and_save_image(reply_image, image_path, image_path)
+                    reply.admin_image = filename
+            else:
+                # Create new reply
+                new_reply = CommentReply(comment_id=comment.id, reply_text=reply_text, admin_status=new_status)
+                if reply_image and reply_image.filename:
+                    uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+                    if not os.path.exists(uploads_dir):
+                        os.makedirs(uploads_dir)
+                    filename = secure_filename(reply_image.filename)
+                    image_path = os.path.join(uploads_dir, filename)
+                    compress_and_save_image(reply_image, image_path, image_path)
+                    new_reply.admin_image = filename
+                db.session.add(new_reply)
+            flash("Reply saved.", "success")
         elif action == 'delete':
-            db.session.delete(comment)
-            flash("Comment deleted.", "success")
+            # For simplicity, delete all replies for this comment (or adjust to delete a specific reply)
+            # Here we delete a reply if reply_id is provided, otherwise delete the entire comment.
+            reply_id = request.form.get('reply_id')
+            if reply_id:
+                reply = CommentReply.query.get(reply_id)
+                db.session.delete(reply)
+            else:
+                db.session.delete(comment)
+            flash("Deleted.", "success")
         db.session.commit()
-        return redirect(url_for('admin_comments'))
-    return render_template('admin_comments.html', comments=comments_list)
+        return redirect(url_for('admin_comments', filter_category=filter_cat))
+    return render_template('admin_comments.html', comments=comments_list, filter_category=filter_cat)
 
 # New route to upvote a comment
 @app.route('/comment/upvote/<int:comment_id>', methods=['POST'])
@@ -917,6 +1001,39 @@ def upvote_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     comment.upvotes += 1
     db.session.commit()
+    return redirect(url_for('comments'))
+
+# Allowed image extensions
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_image(filename):
+    ext = os.path.splitext(filename)[1].lower()[1:]
+    return ext in ALLOWED_IMAGE_EXTENSIONS
+
+@app.route('/submit_comment_box', methods=['POST'])
+def submit_comment_box():
+    full_name = request.form.get('full_name')
+    status = request.form.get('status')
+    problem_comment = request.form.get('problem_comment')
+    urgency = request.form.get('urgency')
+    suggested_solution = request.form.get('suggested_solution')
+    contact = request.form.get('contact')
+    evidence_file = request.files.get('evidence')
+    evidence_filename = None
+    if evidence_file and evidence_file.filename:
+        if not allowed_image(evidence_file.filename):
+            flash("Only image files are allowed for Evidence.", "error")
+            return redirect(url_for('comment_box'))
+        uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comment_box')
+        if not os.path.exists(uploads_dir):
+            os.makedirs(uploads_dir)
+        evidence_filename = secure_filename(evidence_file.filename)
+        file_path = os.path.join(uploads_dir, evidence_filename)
+        # Compress the image before saving
+        compress_and_save_image(evidence_file, file_path, file_path)
+    # Process other fields as needed (e.g., store in database)
+    # For now, simply flash a success message.
+    flash("Your comment has been submitted!", "success")
     return redirect(url_for('comments'))
 
 

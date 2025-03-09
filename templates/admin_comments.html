@@ -1,25 +1,173 @@
 {% extends "base.html" %}
 {% block content %}
+  <style>
+    /* Adjusted timeline styling */
+    .timeline {
+      position: relative;
+      padding: 20px 0;
+      list-style: none;
+    }
+    .timeline:before {
+      position: absolute;
+      left: 30px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: #e9ecef;
+      content: '';
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 20px;
+      padding-left: 60px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .timeline-item:before {
+      position: absolute;
+      left: 20px;
+      top: 10px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: #fff;
+      border: 2px solid #6c757d;
+      content: '';
+    }
+    .timeline-panel {
+      padding: 10px 15px;
+    }
+    .reply-thumbnail {
+      max-width: 150px;
+      margin: 10px auto;
+      display: block;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+  
   <div class="container">
     <h2>Manage Comments</h2>
+    <!-- Filter form for admin -->
+    <form method="get" action="{{ url_for('admin_comments') }}" class="form-inline mb-3">
+      <label for="filter_category" class="mr-2">Filter by Category:</label>
+      <select name="filter_category" id="filter_category" class="form-control mr-2" onchange="this.form.submit()">
+        <option value="All" {% if filter_category == 'All' %}selected{% endif %}>All</option>
+        <option value="General" {% if filter_category == 'General' %}selected{% endif %}>General</option>
+        <option value="IT" {% if filter_category == 'IT' %}selected{% endif %}>IT</option>
+        <option value="Sport" {% if filter_category == 'Sport' %}selected{% endif %}>Sport</option>
+        <option value="Artistic Event" {% if filter_category == 'Artistic Event' %}selected{% endif %}>Artistic Event</option>
+        <option value="Student Affair" {% if filter_category == 'Student Affair' %}selected{% endif %}>Student Affair</option>
+        <option value="PR" {% if filter_category == 'PR' %}selected{% endif %}>PR</option>
+      </select>
+      <noscript><button type="submit" class="btn btn-primary">Filter</button></noscript>
+    </form>
+    
     {% for comment in comments %}
       <div class="card my-2">
         <div class="card-body">
+          <p><strong>Category:</strong> {{ comment.category }}</p>
           <p>{{ comment.content }}</p>
-          <small class="text-muted">Posted on {{ comment.created_at|local_time }}</small>
-          {% if comment.admin_reply %}
-            <div class="alert alert-info mt-2">Reply: {{ comment.admin_reply }}</div>
-          {% endif %}
-          <form method="post" class="mt-2">
-            <input type="hidden" name="comment_id" value="{{ comment.id }}">
-            <div class="form-group">
-              <textarea name="reply" class="form-control" placeholder="Type your reply here...">{{ comment.admin_reply }}</textarea>
+          {% if comment.urgency %}
+            <div class="progress my-2">
+              <div class="progress-bar bg-danger" role="progressbar" style="width: {{ comment.urgency*10 }}%;" aria-valuenow="{{ comment.urgency }}" aria-valuemin="1" aria-valuemax="10">
+                Urgency: {{ comment.urgency }}
+              </div>
             </div>
-            <button type="submit" name="action" value="reply" class="btn btn-success btn-sm">Reply</button>
-            <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete this comment?');">Delete</button>
+          {% endif %}
+          <small class="text-muted">Posted on {{ comment.created_at|local_time }} | Upvotes: {{ comment.upvotes }}</small>
+          {% if comment.evidence %}
+            <div class="mt-2 text-center">
+              <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="max-width:200px;">
+            </div>
+          {% endif %}
+          
+          <!-- Timeline for admin replies -->
+          <div class="timeline mt-3">
+            {% for reply in comment.replies %}
+              <div class="timeline-item">
+                <div class="timeline-panel">
+                  <div class="timeline-heading mb-2">
+                    <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
+                  </div>
+                  <div class="timeline-body">
+                    <p>
+                      Status:
+                      {% if reply.admin_status == 'coordinating' %}
+                        <span class="badge badge-info">Coordinating</span>
+                      {% elif reply.admin_status == 'in progress' %}
+                        <span class="badge badge-warning">In Progress</span>
+                      {% elif reply.admin_status == 'complete' %}
+                        <span class="badge badge-success">Complete</span>
+                      {% else %}
+                        <span class="badge badge-secondary">{{ reply.admin_status }}</span>
+                      {% endif %}
+                    </p>
+                    <p>Replied at: {{ reply.reply_time|local_time }}</p>
+                    {% if reply.admin_image %}
+                      <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}" alt="Reply Evidence" class="reply-thumbnail">
+                    {% endif %}
+                  </div>
+                  <div class="timeline-footer text-right">
+                    <button class="btn btn-sm btn-secondary" onclick="loadReply('{{ reply.id }}', '{{ reply.reply_text|escapejs }}', '{{ reply.admin_status }}')">Edit Reply</button>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <!-- Reply form -->
+          <form method="post" enctype="multipart/form-data" class="mt-3">
+            <input type="hidden" name="comment_id" value="{{ comment.id }}">
+            <!-- Hidden field for reply_id -->
+            <input type="hidden" id="reply_id_{{ comment.id }}" name="reply_id" value="">
+            <div class="form-group">
+              <label for="reply_{{ comment.id }}">Reply</label>
+              <textarea name="reply" id="reply_{{ comment.id }}" class="form-control" placeholder="Type your reply here..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="status_{{ comment.id }}">Status</label>
+              <select name="status" id="status_{{ comment.id }}" class="form-control">
+                <option value="coordinating">Coordinating</option>
+                <option value="in progress">In Progress</option>
+                <option value="complete">Complete</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="reply_image_{{ comment.id }}">Attach Image</label>
+              <input type="file" name="reply_image" id="reply_image_{{ comment.id }}" class="form-control-file" accept="image/*">
+            </div>
+            <div class="form-group">
+              <label for="category_{{ comment.id }}">Update Category</label>
+              <select name="category" id="category_{{ comment.id }}" class="form-control">
+                <option value="General" {% if comment.category == 'General' %}selected{% endif %}>General</option>
+                <option value="IT" {% if comment.category == 'IT' %}selected{% endif %}>IT</option>
+                <option value="Sport" {% if comment.category == 'Sport' %}selected{% endif %}>Sport</option>
+                <option value="Artistic Event" {% if comment.category == 'Artistic Event' %}selected{% endif %}>Artistic Event</option>
+                <option value="Student Affair" {% if comment.category == 'Student Affair' %}selected{% endif %}>Student Affair</option>
+                <option value="PR" {% if comment.category == 'PR' %}selected{% endif %}>PR</option>
+              </select>
+            </div>
+            <button type="submit" name="action" value="reply" class="btn btn-success btn-sm">Update & Reply</button>
+            <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete this reply?');">Delete</button>
           </form>
         </div>
       </div>
     {% endfor %}
   </div>
+  
+  <script>
+    function loadReply(replyId, replyText, status) {
+      // Update all reply forms with the provided reply details.
+      document.querySelectorAll('input[name="reply_id"]').forEach(function(input) {
+        input.value = replyId;
+      });
+      document.querySelectorAll('textarea[name="reply"]').forEach(function(textarea) {
+        textarea.value = replyText;
+      });
+      document.querySelectorAll('select[name="status"]').forEach(function(select) {
+        select.value = status;
+      });
+    }
+  </script>
 {% endblock %}
