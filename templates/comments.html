@@ -41,79 +41,93 @@
   <div class="container">
     <h2 class="my-4">Comment Box 2024</h2>
     <p>This form is for reporting issues and comments within the school by the Student Committee on Student Affairs.</p>
-    <form method="post" action="{{ url_for('comments') }}" enctype="multipart/form-data">
-      {{ form.hidden_tag() }}
-      <div class="form-group">
-        {{ form.full_name.label }}:
-        {{ form.full_name(class="form-control", placeholder="Enter your full name (optional)") }}
-      </div>
-      <div class="form-group">
-        {{ form.status.label }}:
-        <select class="form-control" name="status" id="status">
-          <option value="Grade 9">Grade 9</option>
-          <option value="Grade 10">Grade 10</option>
-          <option value="Grade 11">Grade 11</option>
-          <option value="Teacher & Personnel">Teacher & Personnel</option>
-        </select>
-      </div>
-      <div class="form-group">
-        {{ form.problem_comment.label }}:
-        {{ form.problem_comment(class="form-control", rows="4", placeholder="Describe the problem or comment") }}
-      </div>
-      <div class="form-group">
-        <label for="urgency">Urgency:</label>
-        <div id="star-rating">
-          {% for i in range(1, 11) %}
-            <i class="far fa-star" data-value="{{ i }}"></i>
-          {% endfor %}
+    <!-- Wrap the comment form inside a Bootstrap card for a prettier look -->
+    <div class="card card-body mb-4">
+      <form method="post" action="{{ url_for('comments') }}" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+          {{ form.full_name.label }}:
+          {{ form.full_name(class="form-control", placeholder="Enter your full name (optional)") }}
         </div>
-        <input type="hidden" name="urgency" id="urgency" value="5">
-        <small class="form-text text-muted">Click stars to set urgency (1 = least urgent, 10 = most urgent)</small>
-      </div>
-      <script>
-        const stars = document.querySelectorAll('#star-rating i');
-        const urgencyInput = document.getElementById('urgency');
-        // Set default rating if desired:
-        const defaultRating = urgencyInput.value;
-        stars.forEach(star => {
-          if (parseInt(star.getAttribute('data-value')) <= defaultRating) {
-            star.classList.remove('far');
-            star.classList.add('fas');
-          }
-        });
-        stars.forEach(star => {
-          star.addEventListener('click', function(){
-            const rating = this.getAttribute('data-value');
-            urgencyInput.value = rating;
-            stars.forEach(s => {
-               if (parseInt(s.getAttribute('data-value')) <= rating) {
-                   s.classList.remove('far');
-                   s.classList.add('fas');
-               } else {
-                   s.classList.remove('fas');
-                   s.classList.add('far');
-               }
+        <div class="form-group">
+          {{ form.status.label }}:
+          <select class="form-control" name="status" id="status">
+            <option value="Grade 9">Grade 9</option>
+            <option value="Grade 10">Grade 10</option>
+            <option value="Grade 11">Grade 11</option>
+            <option value="Teacher & Personnel">Teacher & Personnel</option>
+          </select>
+        </div>
+        <!-- New: Category selection dropdown -->
+        <div class="form-group">
+          <label for="category">Category:</label>
+          <select class="form-control" name="category" id="category">
+            <option value="General">General</option>
+            <option value="IT">IT</option>
+            <option value="Sport">Sport</option>
+            <option value="Artistic Event">Artistic Event</option>
+            <option value="Student Affair">Student Affair</option>
+            <option value="PR">PR</option>
+          </select>
+        </div>
+        <div class="form-group">
+          {{ form.problem_comment.label }}:
+          {{ form.problem_comment(class="form-control", rows="4", placeholder="Describe the problem or comment") }}
+        </div>
+        <div class="form-group">
+          <label for="urgency">Urgency:</label>
+          <div id="star-rating">
+            {% for i in range(1, 11) %}
+              <i class="far fa-star" data-value="{{ i }}"></i>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="urgency" id="urgency" value="5">
+          <small class="form-text text-muted">Click stars to set urgency (1 = least urgent, 10 = most urgent)</small>
+        </div>
+        <script>
+          const stars = document.querySelectorAll('#star-rating i');
+          const urgencyInput = document.getElementById('urgency');
+          const defaultRating = urgencyInput.value;
+          stars.forEach(star => {
+            if (parseInt(star.getAttribute('data-value')) <= defaultRating) {
+              star.classList.remove('far');
+              star.classList.add('fas');
+            }
+          });
+          stars.forEach(star => {
+            star.addEventListener('click', function(){
+              const rating = this.getAttribute('data-value');
+              urgencyInput.value = rating;
+              stars.forEach(s => {
+                 if (parseInt(s.getAttribute('data-value')) <= rating) {
+                     s.classList.remove('far');
+                     s.classList.add('fas');
+                 } else {
+                     s.classList.remove('fas');
+                     s.classList.add('far');
+                 }
+              });
             });
           });
-        });
-      </script>
-      <div class="form-group">
-        {{ form.suggested_solution.label }}:
-        {{ form.suggested_solution(class="form-control", rows="3", placeholder="Optional suggested solution") }}
-      </div>
-      <div class="form-group">
-        {{ form.evidence.label }}:
-        {{ form.evidence(class="form-control-file", multiple="multiple", accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,image/*,video/*,audio/*") }}
-        <small class="form-text text-muted">
-          File number limit: 10; Single file size limit: 1GB.
-        </small>
-      </div>
-      <div class="form-group">
-        {{ form.contact.label }}:
-        {{ form.contact(class="form-control", placeholder="Enter your contact information (optional)") }}
-      </div>
-      <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-    </form>
+        </script>
+        <div class="form-group">
+          {{ form.suggested_solution.label }}:
+          {{ form.suggested_solution(class="form-control", rows="3", placeholder="Optional suggested solution") }}
+        </div>
+        <div class="form-group">
+          {{ form.evidence.label }}:
+          {{ form.evidence(class="form-control-file", multiple="multiple", accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,image/*,video/*,audio/*") }}
+          <small class="form-text text-muted">
+            File number limit: 10; Single file size limit: 1GB.
+          </small>
+        </div>
+        <div class="form-group">
+          {{ form.contact.label }}:
+          {{ form.contact(class="form-control", placeholder="Enter your contact information (optional)") }}
+        </div>
+        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+      </form>
+    </div>
     
     <hr>
     
