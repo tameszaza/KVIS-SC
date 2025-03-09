@@ -863,6 +863,7 @@ from datetime import datetime
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
+    urgency = db.Column(db.Integer, default=5)  # NEW: dedicated urgency field
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     category = db.Column(db.String(50), default='General')
     upvotes = db.Column(db.Integer, default=0)
@@ -914,16 +915,16 @@ def comments():
             evidence_filename = secure_filename(form.evidence.data.filename)
             file_path = os.path.join(uploads_dir, evidence_filename)
             compress_and_save_image(form.evidence.data, file_path, file_path)
-        # Combine the fields into comment content
+        # Combine fields into content but do not put urgency in the text now.
         content = ("From: " + (form.full_name.data or "Anonymous") + " (" + form.status.data + ")\n" +
                    "Problem/Comment: " + form.problem_comment.data + "\n" +
-                   "Urgency: " + str(form.urgency.data) + "\n" +
                    "Suggested: " + (form.suggested_solution.data or "N/A") + "\n" +
                    "Contact: " + (form.contact.data or "N/A"))
         new_comment = Comment(
             content=content,
+            urgency=form.urgency.data,  # Store urgency separately
             category="General",  # Adjust as needed
-            evidence=evidence_filename  # Save the filename (if any)
+            evidence=evidence_filename
         )
         db.session.add(new_comment)
         db.session.commit()
@@ -933,7 +934,8 @@ def comments():
     if filter_cat == 'All':
         all_comments = Comment.query.order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
     else:
-        all_comments = Comment.query.filter_by(category=filter_cat).order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
+        all_comments = Comment.query.filter_by(category=filter_cat)\
+                                      .order_by(Comment.upvotes.desc(), Comment.created_at.desc()).all()
     return render_template('comments.html', form=form, comments=all_comments)
 
 # Admin route for managing comments (reply or delete)

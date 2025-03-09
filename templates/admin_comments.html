@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
   <style>
-    /* Adjusted timeline styling */
     .timeline {
       position: relative;
       padding: 20px 0;
@@ -20,14 +19,11 @@
       position: relative;
       margin-bottom: 20px;
       padding-left: 60px;
-      background: #fff;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .timeline-item:before {
       position: absolute;
       left: 20px;
-      top: 10px;
+      top: 0;
       width: 20px;
       height: 20px;
       border-radius: 50%;
@@ -36,14 +32,10 @@
       content: '';
     }
     .timeline-panel {
-      padding: 10px 15px;
-    }
-    .reply-thumbnail {
-      max-width: 150px;
-      margin: 10px auto;
-      display: block;
-      border: 1px solid #ddd;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
       border-radius: 4px;
+      padding: 10px;
     }
   </style>
   
@@ -106,7 +98,10 @@
                     </p>
                     <p>Replied at: {{ reply.reply_time|local_time }}</p>
                     {% if reply.admin_image %}
-                      <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}" alt="Reply Evidence" class="reply-thumbnail">
+                      <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                           alt="Reply Evidence"
+                           class="reply-thumbnail"
+                           style="width: 100%; max-width: 300px; height: auto; max-height: 300px; object-fit: contain; display: block; margin: 0 auto;">
                     {% endif %}
                   </div>
                   <div class="timeline-footer text-right">

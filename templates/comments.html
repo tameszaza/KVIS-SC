@@ -61,10 +61,42 @@
         {{ form.problem_comment(class="form-control", rows="4", placeholder="Describe the problem or comment") }}
       </div>
       <div class="form-group">
-        {{ form.urgency.label }}:
-        {{ form.urgency(class="form-control", min="1", max="10", value="5") }}
-        <small class="form-text text-muted">1 = least urgent, 10 = most urgent</small>
+        <label for="urgency">Urgency:</label>
+        <div id="star-rating">
+          {% for i in range(1, 11) %}
+            <i class="far fa-star" data-value="{{ i }}"></i>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="urgency" id="urgency" value="5">
+        <small class="form-text text-muted">Click stars to set urgency (1 = least urgent, 10 = most urgent)</small>
       </div>
+      <script>
+        const stars = document.querySelectorAll('#star-rating i');
+        const urgencyInput = document.getElementById('urgency');
+        // Set default rating if desired:
+        const defaultRating = urgencyInput.value;
+        stars.forEach(star => {
+          if (parseInt(star.getAttribute('data-value')) <= defaultRating) {
+            star.classList.remove('far');
+            star.classList.add('fas');
+          }
+        });
+        stars.forEach(star => {
+          star.addEventListener('click', function(){
+            const rating = this.getAttribute('data-value');
+            urgencyInput.value = rating;
+            stars.forEach(s => {
+               if (parseInt(s.getAttribute('data-value')) <= rating) {
+                   s.classList.remove('far');
+                   s.classList.add('fas');
+               } else {
+                   s.classList.remove('fas');
+                   s.classList.add('far');
+               }
+            });
+          });
+        });
+      </script>
       <div class="form-group">
         {{ form.suggested_solution.label }}:
         {{ form.suggested_solution(class="form-control", rows="3", placeholder="Optional suggested solution") }}
@@ -90,25 +122,26 @@
       <div class="card my-2">
         <div class="card-body">
           {% set lines = comment.content.split('\n') %}
-          {% for line in lines if line %}
+          {% for line in lines if line and not line.startswith('Urgency:') %}
             <p>{{ line }}</p>
           {% endfor %}
           {% if comment.urgency %}
-            <p>
-              Urgency:
-              {% for i in range(comment.urgency) %}
-                <i class="fas fa-star text-warning"></i>
-              {% endfor %}
-            </p>
+            <div class="progress my-2">
+              <div class="progress-bar bg-danger" role="progressbar" style="width: {{ comment.urgency*10 }}%;" aria-valuenow="{{ comment.urgency }}" aria-valuemin="1" aria-valuemax="10">
+                Urgency: {{ comment.urgency }}
+              </div>
+            </div>
+          {% endif %}
+          {% if comment.evidence %}
+            <div class="mt-2 text-center">
+              <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}"
+                   alt="Evidence"
+                   style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+            </div>
           {% endif %}
           <small class="text-muted">
             Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}
           </small>
-          {% if comment.evidence %}
-            <div class="mt-2 text-center">
-              <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="max-width:200px;">
-            </div>
-          {% endif %}
           {% if comment.replies %}
             <div class="timeline mt-3">
               {% for reply in comment.replies %}
@@ -132,7 +165,10 @@
                       </p>
                       <p>Replied at: {{ reply.reply_time|local_time }}</p>
                       {% if reply.admin_image %}
-                        <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}" alt="Reply Evidence" class="reply-thumbnail">
+                        <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                             alt="Reply Evidence"
+                             class="reply-thumbnail"
+                             style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
                       {% endif %}
                     </div>
                   </div>
