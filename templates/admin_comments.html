@@ -79,15 +79,29 @@
         <div class="card my-2 comment-card" data-category="{{ comment.category }}" data-progress="{{ latest_status }}">
           <div class="card-body">
             <p><strong>Category:</strong> {{ comment.category }}</p>
-            <p>{{ comment.content }}</p>
+            <p>{{ comment.content.replace('\n', '<br><br>')|safe }}</p>
             {% if comment.urgency %}
-              <div class="progress my-2">
-                <div class="progress-bar bg-danger" role="progressbar" style="width: {{ comment.urgency*10 }}%;" aria-valuenow="{{ comment.urgency }}" aria-valuemin="1" aria-valuemax="10">
-                  Urgency: {{ comment.urgency }}
-                </div>
+              <div style="position: absolute; top: 10px; right: 10px;">
+                <span style="font-size: 0.8em;">
+                  {% set full_stars = comment.urgency // 2 %}
+                  {% set half_star = comment.urgency % 2 %}
+                  {% set empty_stars = 5 - full_stars - half_star %}
+                  {% for i in range(full_stars) %}
+                     <i class="fas fa-star"></i>
+                  {% endfor %}
+                  {% if half_star %}
+                     <i class="fas fa-star-half-alt"></i>
+                  {% endif %}
+                  {% for i in range(empty_stars) %}
+                     <i class="far fa-star"></i>
+                  {% endfor %}
+                </span>
               </div>
             {% endif %}
-            <small class="text-muted">Posted on {{ comment.created_at|local_time }} | Upvotes: {{ comment.upvotes }}</small>
+            <small class="text-muted">
+              Posted on: {{ comment.created_at|local_time }}
+              Upvotes: {{ comment.upvotes }}
+            </small>
             {% if comment.evidence %}
               <div class="mt-2 text-center">
                 <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="max-width:200px;">
