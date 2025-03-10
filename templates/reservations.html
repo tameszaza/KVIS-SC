@@ -93,13 +93,13 @@
     -->
 <!-- Mobile Timeline Wrapper -->
 
-<div class="d-block d-md-none" style="margin-bottom: 20px; overflow: hidden;">
+<div class="d-block d-md-none" style="margin-bottom: 20px;">
   <!-- Mobile Time Labels Container -->
   <div class="d-block d-md-none" style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
     {% for h in range(0, 25) %}
       {% set top_px = (h / 24) * 2000 %}
-      <div style="position: absolute; top: {{ top_px }}px;">
-        <small class="text-muted">
+      <div style="position: absolute; top: {{ top_px }}px; transform: translateY(-50%);">
+        <small class="text-muted" style="font-size:0.7rem;">
           {% if h < 24 %}
             {{ "%02d:00"|format(h) }}
           {% else %}
@@ -111,7 +111,7 @@
   </div>
 
   <!-- Mobile Calendar Container -->
-  <div id="mobileTimeline" style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;">
+  <div id="mobileTimeline" style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;margin-bottom: 24px;">
     {% set lane_map = {
       'study_room_b1': 0,
       'study_room_b2': 1,

@@ -37,11 +37,13 @@
       border-radius: 4px;
       padding: 10px;
     }
+
+    /* NEW: Reduce font size on mobile devices */
+    
   </style>
   <div class="container">
     <h2 class="my-4">Comment Box <span style="font-size: 0.8em; opacity: 0.6;">Version 0.0</span></h2>
     <p>This form is for reporting issues and comments within the school by the Student Committee on Student Affairs.</p>
-    <!-- Wrap the comment form inside a Bootstrap card for a prettier look -->
     <div class="card card-body mb-4">
       <form method="post" action="{{ url_for('comments') }}" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
@@ -52,9 +54,9 @@
         <div class="form-group">
           {{ form.status.label }}:
           <select class="form-control" name="status" id="status">
-            <option value="Grade 9">Grade 9</option>
-            <option value="Grade 10">Grade 10</option>
-            <option value="Grade 11">Grade 11</option>
+            <option value="Batch 9">Batch 9</option>
+            <option value="Batch 10">Batch 10</option>
+            <option value="Batch 11">Batch 11</option>
             <option value="Teacher & Personnel">Teacher & Personnel</option>
           </select>
         </div>
@@ -129,68 +131,95 @@
       </form>
     </div>
     
-    <!-- Grouping Buttons -->
+    <!-- New: Client-side filtering controls -->
     <div class="mb-4">
       <h5>Filter by Category:</h5>
-      <a href="{{ url_for('comments', filter_category='All', filter_progress=filter_progress) }}" class="btn btn-sm btn-outline-primary {% if filter_category=='All' %}active{% endif %}">All</a>
+      <button type="button" class="btn btn-sm btn-outline-primary filter-cat" data-value="All">All</button>
       {% for cat in categories %}
-        <a href="{{ url_for('comments', filter_category=cat, filter_progress=filter_progress) }}" class="btn btn-sm btn-outline-primary {% if filter_category==cat %}active{% endif %}">{{ cat }}</a>
+        <button type="button" class="btn btn-sm btn-outline-primary filter-cat" data-value="{{ cat }}">{{ cat }}</button>
       {% endfor %}
     </div>
     <div class="mb-4">
       <h5>Filter by Latest Admin Reply Status:</h5>
-      <a href="{{ url_for('comments', filter_category=filter_category, filter_progress='All') }}" class="btn btn-sm btn-outline-secondary {% if filter_progress=='All' %}active{% endif %}">All</a>
+      <button type="button" class="btn btn-sm btn-outline-secondary filter-prog" data-value="All">All</button>
       {% for prog in progress_groups %}
-        <a href="{{ url_for('comments', filter_category=filter_category, filter_progress=prog) }}" class="btn btn-sm btn-outline-secondary {% if filter_progress==prog %}active{% endif %}">{{ prog }}</a>
+        <button type="button" class="btn btn-sm btn-outline-secondary filter-prog" data-value="{{ prog }}">{{ prog }}</button>
       {% endfor %}
     </div>
     
-    <hr>
-    
-    <!-- New: Display total number of comments -->
-    
-    <h3>Existing Comments </h3>
-    <h6 class="text-muted">now showing {{ comments|length }}</h6>
+    <!-- Display total number of comments -->
+    <h3>Existing Comments</h3>
+    <h6 class="text-muted" id="comment-count">now showing {{ comments|length }}</h6>
+    <div id="comments-container">
     {% for comment in comments %}
-      <div class="card my-2">
+      {% if comment.replies %}
+        {% set latest_status = comment.replies[-1].admin_status %}
+      {% else %}
+        {% set latest_status = "No Reply" %}
+      {% endif %}
+      <div class="card my-2 comment-card" data-category="{{ comment.category }}" data-progress="{{ latest_status }}">
         <div class="card-body" style="position: relative;">
-          {% if comment.replies %}
-            {% set latest_reply = comment.replies|last %}
-            <div style="position: absolute; top: 10px; right: 10px;">
-              {% if latest_reply.admin_status == 'coordinating' %}
-                <span class="badge badge-info">Coordinating</span>
-              {% elif latest_reply.admin_status == 'in progress' %}
-                <span class="badge badge-warning">In Progress</span>
-              {% elif latest_reply.admin_status == 'complete' %}
-                <span class="badge badge-success">Complete</span>
-              {% else %}
-                <span class="badge badge-secondary">{{ latest_reply.admin_status }}</span>
+          <div style="position: absolute; top: 10px; right: 10px;">
+            <span style="text-muted; font-size: 0.8em;">
+              {% set full_stars = comment.urgency // 2 %}
+              {% set half_star = comment.urgency % 2 %}
+              {% set empty_stars = 5 - full_stars - half_star %}
+              {% for i in range(full_stars) %}
+                 <i class="fas fa-star"></i>
+              {% endfor %}
+              {% if half_star %}
+                 <i class="fas fa-star-half-alt"></i>
               {% endif %}
-            </div>
-          {% endif %}
+              {% for i in range(empty_stars) %}
+                 <i class="far fa-star"></i>
+              {% endfor %}
+            </span>
+          </div>
           {% set lines = comment.content.split('\n') %}
           {% for line in lines if line and not line.startswith('Urgency:') %}
             <p>{{ line }}</p>
           {% endfor %}
-          {% if comment.urgency %}
-            <div class="progress my-2">
-              <div class="progress-bar bg-danger" role="progressbar" style="width: {{ comment.urgency*10 }}%;" aria-valuenow="{{ comment.urgency }}" aria-valuemin="1" aria-valuemax="10">
-                Urgency: {{ comment.urgency }}
+          {% if comment.replies %}
+            {% set latest = comment.replies[-1] %}
+            <div class="mt-2">
+              <label>Current Progress:</label>
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: {{ latest.progress }}%;
+                   {% if latest.admin_status == 'coordinating' %}background-color: #17a2b8{% elif latest.admin_status == 'in progress' %}background-color: #ffc107{% elif latest.admin_status == 'complete' %}background-color: #28a745{% else %}background-color: #6c757d{% endif %};"
+                   aria-valuenow="{{ latest.progress }}" aria-valuemin="0" aria-valuemax="100">
+                  {{ latest.progress }}%
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="mt-2">
+              <label>Current Progress:</label>
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%; background-color: #6c757d;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                  0%
+                </div>
               </div>
             </div>
           {% endif %}
           {% if comment.evidence %}
             <div class="mt-2 text-center">
-              <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}"
-                   alt="Evidence"
-                   style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+                <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="width:100%; max-width:350px; height:auto; max-height:350px; object-fit:contain;">
             </div>
           {% endif %}
           <small class="text-muted">
             Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}
           </small>
+          <div class="mt-2">
+            {% if current_user.is_authenticated or session.get("inventory_user") %}
+              <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-outline-success">Upvote</button>
+              </form>
+            {% else %}
+              <a href="{{ url_for('user_login') }}" class="btn btn-sm btn-outline-primary">Login to Upvote</a>
+            {% endif %}
+            <span> Upvotes: {{ comment.upvotes }}</span>
+          </div>
           {% if comment.replies %}
-            <!-- New: Show reply count inline as muted, right-aligned -->
             <span class="float-right text-muted">(Replies: {{ comment.replies|length }})</span>
             {% if comment.replies|length > 1 %}
               <button class="btn btn-sm btn-link show-more-replies">Show More</button>
@@ -233,35 +262,34 @@
                 {% endfor %}
               </div>
             {% endif %}
-            {% set latest_reply = comment.replies|last %}
             <div class="timeline">
               <div class="timeline-item">
                 <div class="timeline-panel">
                   <div class="timeline-heading mb-2">
-                    <h6 class="mb-1">Reply: {{ latest_reply.reply_text }}</h6>
+                    <h6 class="mb-1">Reply: {{ comment.replies[-1].reply_text }}</h6>
                   </div>
                   <div class="timeline-body">
                     <p>
                       Status:
-                      {% if latest_reply.admin_status == 'coordinating' %}
+                      {% if latest_status == 'coordinating' %}
                         <span class="badge badge-info">Coordinating</span>
-                      {% elif latest_reply.admin_status == 'in progress' %}
+                      {% elif latest_status == 'in progress' %}
                         <span class="badge badge-warning">In Progress</span>
-                      {% elif latest_reply.admin_status == 'complete' %}
+                      {% elif latest_status == 'complete' %}
                         <span class="badge badge-success">Complete</span>
                       {% else %}
-                        <span class="badge badge-secondary">{{ latest_reply.admin_status }}</span>
+                        <span class="badge badge-secondary">{{ latest_status }}</span>
                       {% endif %}
                     </p>
-                    {% if latest_reply.admin_image %}
-                      <img src="{{ url_for('static', filename='uploads/comments/' ~ latest_reply.admin_image) }}"
+                    {% if comment.replies[-1].admin_image %}
+                      <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.replies[-1].admin_image) }}"
                            alt="Reply Evidence"
                            class="reply-thumbnail"
                            style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
                     {% endif %}
                     <div style="position: relative; min-height: 1.2em;">
                       <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
-                        Replied at: {{ latest_reply.reply_time|local_time }}
+                        Replied at: {{ comment.replies[-1].reply_time|local_time }}
                       </span>
                     </div>
                   </div>
@@ -272,8 +300,56 @@
         </div>
       </div>
     {% endfor %}
+    </div>
   </div>
   <script>
+    // Filtering using JavaScript
+    const catButtons = document.querySelectorAll('.filter-cat');
+    const progButtons = document.querySelectorAll('.filter-prog');
+    const commentCards = document.querySelectorAll('.comment-card');
+    const commentCountEl = document.getElementById('comment-count');
+    
+    let selectedCat = 'All';
+    let selectedProg = 'All';
+    
+    function updateActive(buttons, value) {
+      buttons.forEach(btn => {
+        if(btn.getAttribute('data-value') === value) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+    
+    function filterComments(){
+      let count = 0;
+      commentCards.forEach(card => {
+        const cardCat = card.getAttribute('data-category');
+        const cardProg = card.getAttribute('data-progress');
+        const show = (selectedCat === 'All' || cardCat === selectedCat) && (selectedProg === 'All' || cardProg === selectedProg);
+        card.style.display = show ? '' : 'none';
+        if(show) count++;
+      });
+      commentCountEl.textContent = `now showing ${count}`;
+    }
+    
+    catButtons.forEach(btn => {
+      btn.addEventListener('click', function(){
+        selectedCat = this.getAttribute('data-value');
+        updateActive(catButtons, selectedCat);
+        filterComments();
+      });
+    });
+    
+    progButtons.forEach(btn => {
+      btn.addEventListener('click', function(){
+        selectedProg = this.getAttribute('data-value');
+        updateActive(progButtons, selectedProg);
+        filterComments();
+      });
+    });
+    
     document.querySelectorAll('.show-more-replies').forEach(btn => {
       btn.addEventListener('click', function(){
         const repliesContainer = this.nextElementSibling;

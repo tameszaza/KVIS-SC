@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 
 from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, abort, session, jsonify  # add session import if not already imported
-from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin
+from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, FileField, SubmitField, IntegerField
 from wtforms.validators import DataRequired
@@ -27,9 +27,11 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a secure key
 
-# Configure SQLAlchemy for reservations database
+# Configure SQLAlchemy: reservations use the default DB, comments use a separate bind.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservations.db'
-
+app.config['SQLALCHEMY_BINDS'] = {
+    'comments': 'sqlite:///comments.db'
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 # Define the base directory
@@ -231,7 +233,7 @@ def admin_dashboard():
 
 def compress_and_save_image(uploaded_file, high_path, low_path):
     image = Image.open(uploaded_file)
-    if image.mode != 'RGB':
+    if (image.mode != 'RGB'):
         image = image.convert('RGB')
     # Resize if image width exceeds 1920px
     max_width = 1920
@@ -818,7 +820,6 @@ def delete_inventory_item(item_id):
 
 # Create database tables if they don't exist
 with app.app_context():
-    # init_mail(app)
     db.create_all()
 
 @app.template_filter('escapejs')
@@ -832,7 +833,7 @@ def escapejs_filter(s):
 from datetime import timedelta
 @app.template_filter('local_time')
 def local_time_filter(utc_dt):
-    if utc_dt is None:
+    if (utc_dt is None):
         return ""
     return (utc_dt + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M')
 
@@ -861,6 +862,7 @@ from datetime import datetime
 
 # Modify Comment model by removing admin_reply fields and adding a replies relationship
 class Comment(db.Model):
+    __bind_key__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     urgency = db.Column(db.Integer, default=5)  # NEW: dedicated urgency field
@@ -876,22 +878,32 @@ class Comment(db.Model):
 
 # NEW: Model to store multiple admin replies per comment
 class CommentReply(db.Model):
+    __bind_key__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
     comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=False)
     reply_text = db.Column(db.Text, nullable=False)
     admin_status = db.Column(db.String(50), default='coordinating')  # changed default from 'รับเรื่อง'
     admin_image = db.Column(db.String(200))
     reply_time = db.Column(db.DateTime, default=datetime.utcnow)
+    progress = db.Column(db.Integer, default=0)  # NEW: progress value 0-100
     def __repr__(self):
         return f"<Reply {self.id} for Comment {self.comment_id}>"
+
+# NEW: Add CommentVote model
+class CommentVote(db.Model):
+    __bind_key__ = 'comments'
+    id = db.Column(db.Integer, primary_key=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=False)
+    user_id = db.Column(db.String(120), nullable=False)
+    __table_args__ = (db.UniqueConstraint('comment_id', 'user_id', name='_comment_user_uc'),)
 
 # Modified Comment System: Replace CommentForm with CommentBoxForm
 class CommentBoxForm(FlaskForm):
     full_name = StringField('Full Name (Optional)')
     status = SelectField('Status', choices=[
-        ('Grade 9','Grade 9'),
-        ('Grade 10','Grade 10'),
-        ('Grade 11','Grade 11'),
+        ('Batch 9','Batch 9'),
+        ('Batch 10','Batch 10'),
+        ('Batch 11','Batch 11'),
         ('Teacher & Personnel','Teacher & Personnel')
     ])
     category = SelectField('Category', choices=[
@@ -1005,6 +1017,7 @@ def admin_comments():
         if action == 'reply':
             reply_text = request.form.get('reply')
             new_status = request.form.get('status')
+            progress_val = int(request.form.get('progress', 0))  # NEW: get progress value
             reply_id = request.form.get('reply_id')  # If editing an existing reply
             reply_image = request.files.get('reply_image')
             if reply_id:
@@ -1013,6 +1026,7 @@ def admin_comments():
                 reply.reply_text = reply_text
                 reply.admin_status = new_status
                 reply.reply_time = datetime.utcnow()
+                reply.progress = progress_val  # NEW: update progress
                 if reply_image and reply_image.filename:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
                     if not os.path.exists(uploads_dir):
@@ -1023,7 +1037,8 @@ def admin_comments():
                     reply.admin_image = filename
             else:
                 # Create a new reply
-                new_reply = CommentReply(comment_id=comment.id, reply_text=reply_text, admin_status=new_status)
+                new_reply = CommentReply(comment_id=comment.id, reply_text=reply_text,
+                                          admin_status=new_status, progress=progress_val)
                 if reply_image and reply_image.filename:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
                     if not os.path.exists(uploads_dir):
@@ -1038,8 +1053,20 @@ def admin_comments():
             reply_id = request.form.get('reply_id')
             if reply_id:
                 reply = CommentReply.query.get(reply_id)
+                # Delete reply image if exists
+                if reply.admin_image:
+                    uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+                    image_path = os.path.join(uploads_dir, reply.admin_image)
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
                 db.session.delete(reply)
             else:
+                # Delete comment evidence if exists
+                if comment.evidence:
+                    uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+                    evidence_path = os.path.join(uploads_dir, comment.evidence)
+                    if os.path.exists(evidence_path):
+                        os.remove(evidence_path)
                 db.session.delete(comment)
             flash("Deleted.", "success")
         db.session.commit()
@@ -1054,9 +1081,29 @@ def admin_comments():
 # New route to upvote a comment
 @app.route('/comment/upvote/<int:comment_id>', methods=['POST'])
 def upvote_comment(comment_id):
+    # Determine user identifier from current_user (admin) or session (non-admin)
+    user_id = None
+    if current_user.is_authenticated:
+        user_id = current_user.id
+    elif session.get("inventory_user"):
+        user_id = session["inventory_user"]
+    else:
+        flash("You must be logged in to vote", "danger")
+        return redirect(url_for('user_login'))
+    
     comment = Comment.query.get_or_404(comment_id)
+    # Check if this user already voted for this comment
+    existing_vote = CommentVote.query.filter_by(comment_id=comment_id, user_id=user_id).first()
+    if existing_vote:
+        flash("You can only vote once per comment.", "info")
+        return redirect(url_for('comments'))
+    
+    # Create vote record and increment upvotes
+    vote = CommentVote(comment_id=comment_id, user_id=user_id)
+    db.session.add(vote)
     comment.upvotes += 1
     db.session.commit()
+    flash("Upvoted successfully!", "success")
     return redirect(url_for('comments'))
 
 # Allowed image extensions
