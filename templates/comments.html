@@ -42,94 +42,10 @@
     
   </style>
   <div class="container">
-    <h2 class="my-4">Comment Box <span style="font-size: 0.8em; opacity: 0.6;">Version 0.0</span></h2>
-    <p>This form is for reporting issues and comments within the school by the Student Committee on Student Affairs.</p>
-    <div class="card card-body mb-4">
-      <form method="post" action="{{ url_for('comments') }}" enctype="multipart/form-data">
-        {{ form.hidden_tag() }}
-        <div class="form-group">
-          {{ form.full_name.label }}:
-          {{ form.full_name(class="form-control", placeholder="Enter your full name (optional)") }}
-        </div>
-        <div class="form-group">
-          {{ form.status.label }}:
-          <select class="form-control" name="status" id="status">
-            <option value="Batch 9">Batch 9</option>
-            <option value="Batch 10">Batch 10</option>
-            <option value="Batch 11">Batch 11</option>
-            <option value="Teacher & Personnel">Teacher & Personnel</option>
-          </select>
-        </div>
-        <!-- New: Category selection dropdown -->
-        <div class="form-group">
-          <label for="category">Category:</label>
-          <select class="form-control" name="category" id="category">
-            <option value="General">General</option>
-            <option value="IT">IT</option>
-            <option value="Sport">Sport</option>
-            <option value="Artistic Event">Artistic Event</option>
-            <option value="Student Affair">Student Affair</option>
-            <option value="PR">PR</option>
-          </select>
-        </div>
-        <div class="form-group">
-          {{ form.problem_comment.label }}:
-          {{ form.problem_comment(class="form-control", rows="4", placeholder="Describe the problem or comment") }}
-        </div>
-        <div class="form-group">
-          <label for="urgency">Urgency:</label>
-          <div id="star-rating">
-            {% for i in range(1, 11) %}
-              <i class="far fa-star" data-value="{{ i }}"></i>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="urgency" id="urgency" value="5">
-          <small class="form-text text-muted">Click stars to set urgency (1 = least urgent, 10 = most urgent)</small>
-        </div>
-        <script>
-          const stars = document.querySelectorAll('#star-rating i');
-          const urgencyInput = document.getElementById('urgency');
-          const defaultRating = urgencyInput.value;
-          stars.forEach(star => {
-            if (parseInt(star.getAttribute('data-value')) <= defaultRating) {
-              star.classList.remove('far');
-              star.classList.add('fas');
-            }
-          });
-          stars.forEach(star => {
-            star.addEventListener('click', function(){
-              const rating = this.getAttribute('data-value');
-              urgencyInput.value = rating;
-              stars.forEach(s => {
-                 if (parseInt(s.getAttribute('data-value')) <= rating) {
-                     s.classList.remove('far');
-                     s.classList.add('fas');
-                 } else {
-                     s.classList.remove('fas');
-                     s.classList.add('far');
-                 }
-              });
-            });
-          });
-        </script>
-        <div class="form-group">
-          {{ form.suggested_solution.label }}:
-          {{ form.suggested_solution(class="form-control", rows="3", placeholder="Optional suggested solution") }}
-        </div>
-        <div class="form-group">
-          {{ form.evidence.label }}:
-          {{ form.evidence(class="form-control-file", multiple="multiple", accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,image/*,video/*,audio/*") }}
-          <small class="form-text text-muted">
-            File number limit: 10; Single file size limit: 1GB.
-          </small>
-        </div>
-        <div class="form-group">
-          {{ form.contact.label }}:
-          {{ form.contact(class="form-control", placeholder="Enter your contact information (optional)") }}
-        </div>
-        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
-      </form>
-    </div>
+    <h2 class="my-4">Comments Box <span style="font-size: 0.8em; opacity: 0.6;">version 0.0</span></h2>
+    <p>
+      <a href="{{ url_for('new_comment') }}" class="btn btn-primary">Add New Comment</a>
+    </p>
     
     <!-- New: Client-side filtering controls -->
     <div class="mb-4">
@@ -176,14 +92,14 @@
             </span>
           </div>
           {% set lines = comment.content.split('\n') %}
-          {% for line in lines if line and not line.startswith('Urgency:') %}
+          {% for line in lines if line and not line.startswith('Urgency:') and not (line.startswith('Suggested:') and line|trim == 'Suggested: N/A') and not (line.startswith('Contact:') and line|trim == 'Contact: N/A') %}
             <p>{{ line }}</p>
           {% endfor %}
           {% if comment.replies %}
             {% set latest = comment.replies[-1] %}
             <div class="mt-2">
               <label>Current Progress:</label>
-              <div class="progress">
+              <div class="progress mb-2">
                 <div class="progress-bar" role="progressbar" style="width: {{ latest.progress }}%;
                    {% if latest.admin_status == 'coordinating' %}background-color: #17a2b8{% elif latest.admin_status == 'in progress' %}background-color: #ffc107{% elif latest.admin_status == 'complete' %}background-color: #28a745{% else %}background-color: #6c757d{% endif %};"
                    aria-valuenow="{{ latest.progress }}" aria-valuemin="0" aria-valuemax="100">
@@ -194,7 +110,7 @@
           {% else %}
             <div class="mt-2">
               <label>Current Progress:</label>
-              <div class="progress">
+              <div class="progress mb-2">
                 <div class="progress-bar" role="progressbar" style="width: 0%; background-color: #6c757d;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                   0%
                 </div>
@@ -205,22 +121,26 @@
             <div class="mt-2 text-center">
                 <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="width:100%; max-width:350px; height:auto; max-height:350px; object-fit:contain;">
             </div>
+            
           {% endif %}
           <small class="text-muted">
-            Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}
+            <div class="d-flex justify-content-between align-items-center">
+              <span>Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}</span>
+              <span>
+                Upvotes: {{ comment.upvotes }}
+                {% if current_user.is_authenticated or session.get("inventory_user") %}
+                  <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-outline-success mb-2">Upvote</button>
+                  </form>
+                {% else %}
+                  <a href="{{ url_for('user_login') }}" class="btn btn-sm btn-outline-primary">Login to Upvote</a>
+                {% endif %}
+              </span>
+            </div>
           </small>
-          <div class="mt-2">
-            {% if current_user.is_authenticated or session.get("inventory_user") %}
-              <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
-                <button type="submit" class="btn btn-sm btn-outline-success">Upvote</button>
-              </form>
-            {% else %}
-              <a href="{{ url_for('user_login') }}" class="btn btn-sm btn-outline-primary">Login to Upvote</a>
-            {% endif %}
-            <span> Upvotes: {{ comment.upvotes }}</span>
-          </div>
+          
           {% if comment.replies %}
-            <span class="float-right text-muted">(Replies: {{ comment.replies|length }})</span>
+            <span class=" text-muted">(Replies: {{ comment.replies|length }})</span>
             {% if comment.replies|length > 1 %}
               <button class="btn btn-sm btn-link show-more-replies">Show More</button>
               <div class="additional-replies" style="display: none;">
