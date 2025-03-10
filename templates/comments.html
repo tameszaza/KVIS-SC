@@ -68,7 +68,7 @@
     <h6 class="text-muted" id="comment-count">now showing {{ comments|length }}</h6>
     <div id="comments-container">
     {% for comment in comments %}
-      <div class="card my-2 comment-card" data-category="{{ comment.category }}" data-progress="
+      <div class="card my-2 comment-card" data-href="{{ url_for('comment_detail', comment_id=comment.id) }}" data-category="{{ comment.category }}" data-progress="
         {% if comment.replies %}
           {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
           {% if admin_replies %}
@@ -79,164 +79,170 @@
         {% else %}
           No Reply
         {% endif %}">
-        <a href="{{ url_for('comment_detail', comment_id=comment.id) }}" style="text-decoration: none; color: inherit;">
-          <div class="card-body" style="position: relative;">
-            <div style="position: absolute; top: 10px; right: 10px;">
-              <span style="text-muted; font-size: 0.8em;">
-                {% set full_stars = comment.urgency // 2 %}
-                {% set half_star = comment.urgency % 2 %}
-                {% set empty_stars = 5 - full_stars - half_star %}
-                {% for i in range(full_stars) %}
-                   <i class="fas fa-star"></i>
-                {% endfor %}
-                {% if half_star %}
-                   <i class="fas fa-star-half-alt"></i>
+        <div class="card-body" style="position: relative;">
+          <div style="position: absolute; top: 10px; right: 10px;">
+            <span style="font-size: 0.8em;">
+              {% set full_stars = comment.urgency // 2 %}
+              {% set half_star = comment.urgency % 2 %}
+              {% set empty_stars = 5 - full_stars - half_star %}
+              {% for i in range(full_stars) %}<i class="fas fa-star"></i>{% endfor %}
+              {% if half_star %}<i class="fas fa-star-half-alt"></i>{% endif %}
+              {% for i in range(empty_stars) %}<i class="far fa-star"></i>{% endfor %}
+            </span>
+          </div>
+          {% set lines = comment.content.split('\n') %}
+          {% for line in lines if line and not line.startswith('Urgency:') and not (line.startswith('Suggested:') and line|trim == 'Suggested: N/A') and not (line.startswith('Contact:') and line|trim == 'Contact: N/A') %}
+            <p>{{ line }}</p>
+          {% endfor %}
+          {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+          {% if admin_replies %}
+            {% set latest = admin_replies[-1] %}
+            <div class="mt-2">
+              <label>Current Progress:</label>
+              <div class="progress mb-2">
+                <div class="progress-bar" role="progressbar" style="width: {{ latest.progress }}%;
+                   {% if latest.admin_status == 'coordinating' %}background-color: #17a2b8{% elif latest.admin_status == 'in progress' %}background-color: #ffc107{% elif latest.admin_status == 'complete' %}background-color: #28a745{% else %}background-color: #6c757d{% endif %};"
+                   aria-valuenow="{{ latest.progress }}" aria-valuemin="0" aria-valuemax="100">
+                  {{ latest.progress }}%
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="mt-2">
+              <label>Current Progress:</label>
+              <div class="progress mb-2">
+                <div class="progress-bar" role="progressbar" style="width: 0%; background-color: #6c757d;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                  0%
+                </div>
+              </div>
+            </div>
+          {% endif %}
+          {% if comment.evidence %}
+            <div class="mt-2 text-center">
+                <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="width:100%; max-width:350px; height:auto; max-height:350px; object-fit:contain;">
+            </div>
+            
+          {% endif %}
+          <small class="text-muted">
+            <div class="d-flex justify-content-between align-items-center">
+              <span>Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}</span>
+              <span>
+                Upvotes: {{ comment.upvotes }}
+                {% if current_user.is_authenticated or session.get("inventory_user") %}
+                  <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-outline-success mb-2" onclick="event.stopPropagation();">Upvote</button>
+                  </form>
+                {% else %}
+                  <a href="{{ url_for('user_login') }}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">Login to Upvote</a>
                 {% endif %}
-                {% for i in range(empty_stars) %}
-                   <i class="far fa-star"></i>
-                {% endfor %}
               </span>
             </div>
-            {% set lines = comment.content.split('\n') %}
-            {% for line in lines if line and not line.startswith('Urgency:') and not (line.startswith('Suggested:') and line|trim == 'Suggested: N/A') and not (line.startswith('Contact:') and line|trim == 'Contact: N/A') %}
-              <p>{{ line }}</p>
-            {% endfor %}
-            {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
-            {% if admin_replies %}
-              {% set latest = admin_replies[-1] %}
-              <div class="mt-2">
-                <label>Current Progress:</label>
-                <div class="progress mb-2">
-                  <div class="progress-bar" role="progressbar" style="width: {{ latest.progress }}%;
-                     {% if latest.admin_status == 'coordinating' %}background-color: #17a2b8{% elif latest.admin_status == 'in progress' %}background-color: #ffc107{% elif latest.admin_status == 'complete' %}background-color: #28a745{% else %}background-color: #6c757d{% endif %};"
-                     aria-valuenow="{{ latest.progress }}" aria-valuemin="0" aria-valuemax="100">
-                    {{ latest.progress }}%
-                  </div>
-                </div>
-              </div>
-            {% else %}
-              <div class="mt-2">
-                <label>Current Progress:</label>
-                <div class="progress mb-2">
-                  <div class="progress-bar" role="progressbar" style="width: 0%; background-color: #6c757d;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                    0%
-                  </div>
-                </div>
-              </div>
-            {% endif %}
-            {% if comment.evidence %}
-              <div class="mt-2 text-center">
-                  <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.evidence) }}" alt="Evidence" style="width:100%; max-width:350px; height:auto; max-height:350px; object-fit:contain;">
-              </div>
-              
-            {% endif %}
-            <small class="text-muted">
-              <div class="d-flex justify-content-between align-items-center">
-                <span>Posted on: {{ comment.created_at|local_time }} | Category: {{ comment.category }}</span>
-                <span>
-                  Upvotes: {{ comment.upvotes }}
-                  {% if current_user.is_authenticated or session.get("inventory_user") %}
-                    <form action="{{ url_for('upvote_comment', comment_id=comment.id) }}" method="post" style="display:inline;">
-                      <button type="submit" class="btn btn-sm btn-outline-success mb-2">Upvote</button>
-                    </form>
-                  {% else %}
-                    <a href="{{ url_for('user_login') }}" class="btn btn-sm btn-outline-primary">Login to Upvote</a>
-                  {% endif %}
-                </span>
-              </div>
-            </small>
-            
-            {% if comment.replies %}
-              <span class=" text-muted">(Replies: {{ comment.replies|length }})</span>
-              {% if comment.replies|length > 1 %}
-                <button class="btn btn-sm btn-link show-more-replies">Show More</button>
-                <div class="additional-replies" style="display: none;">
-                  {% for reply in comment.replies[0:-1] %}
-                    <div class="timeline">
-                      <div class="timeline-item">
-                        <div class="timeline-panel">
-                          <div class="timeline-heading mb-2">
-                            <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
-                          </div>
-                          <div class="timeline-body">
-                            <p>
-                              Status:
-                              {% if reply.admin_status == 'coordinating' %}
-                                <span class="badge badge-info">Coordinating</span>
-                              {% elif reply.admin_status == 'in progress' %}
-                                <span class="badge badge-warning">In Progress</span>
-                              {% elif reply.admin_status == 'complete' %}
-                                <span class="badge badge-success">Complete</span>
-                              {% else %}
-                                <span class="badge badge-secondary">{{ reply.admin_status }}</span>
-                              {% endif %}
-                            </p>
-                            {% if reply.admin_image %}
-                              <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
-                                   alt="Reply Evidence"
-                                   class="reply-thumbnail"
-                                   style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+          </small>
+          <div class="mt-2">
+          </div>
+          {% if comment.replies %}
+            <span class="text-muted">(Replies: {{ comment.replies|length }})</span>
+            {% if comment.replies|length > 1 %}
+              <button class="btn btn-sm btn-link show-more-replies" onclick="event.stopPropagation();">Show More</button>
+              <div class="additional-replies" style="display: none;">
+                {% for reply in comment.replies[0:-1] %}
+                  <div class="timeline">
+                    <div class="timeline-item">
+                      <div class="timeline-panel">
+                        <div class="timeline-heading mb-2">
+                          <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
+                        </div>
+                        <div class="timeline-body">
+                          <p>
+                            Status:
+                            {% if reply.admin_status == 'coordinating' %}
+                              <span class="badge badge-info">Coordinating</span>
+                            {% elif reply.admin_status == 'in progress' %}
+                              <span class="badge badge-warning">In Progress</span>
+                            {% elif reply.admin_status == 'complete' %}
+                              <span class="badge badge-success">Complete</span>
+                            {% elif reply.admin_status == 'user' %}
+                              <span class="badge badge-secondary">User</span>
+                            {% else %}
+                              <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                             {% endif %}
-                            <div style="position: relative; min-height: 1.2em;">
-                              <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
-                                Replied at: {{ reply.reply_time|local_time }}
-                              </span>
-                            </div>
+                          </p>
+                          {% if reply.admin_image %}
+                            <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                                 alt="Reply Evidence"
+                                 class="reply-thumbnail"
+                                 style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+                          {% endif %}
+                          <div style="position: relative; min-height: 1.2em;">
+                            <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
+                              Replied at: {{ reply.reply_time|local_time }}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
-                  {% endfor %}
-                </div>
-              {% endif %}
-              <div class="timeline">
-                <div class="timeline-item">
-                  <div class="timeline-panel">
-                    <div class="timeline-heading mb-2">
-                      <h6 class="mb-1">Reply: {{ comment.replies[-1].reply_text }}</h6>
-                    </div>
-                    <div class="timeline-body">
-                      <p>
-                        Status:
-                        {% if latest_status == 'coordinating' %}
-                          <span class="badge badge-info">Coordinating</span>
-                        {% elif latest_status == 'in progress' %}
-                          <span class="badge badge-warning">In Progress</span>
-                        {% elif latest_status == 'complete' %}
-                          <span class="badge badge-success">Complete</span>
-                        {% else %}
-                          <span class="badge badge-secondary">{{ latest_status }}</span>
-                        {% endif %}
-                      </p>
-                      {% if comment.replies[-1].admin_image %}
-                        <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.replies[-1].admin_image) }}"
-                             alt="Reply Evidence"
-                             class="reply-thumbnail"
-                             style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-panel">
+                  <div class="timeline-heading mb-2">
+                    <h6 class="mb-1">Reply: {{ comment.replies[-1].reply_text }}</h6>
+                  </div>
+                  <div class="timeline-body">
+                    <p>
+                      Status:
+                      {% if comment.replies[-1].admin_status == 'coordinating' %}
+                        <span class="badge badge-info">Coordinating</span>
+                      {% elif comment.replies[-1].admin_status == 'in progress' %}
+                        <span class="badge badge-warning">In Progress</span>
+                      {% elif comment.replies[-1].admin_status == 'complete' %}
+                        <span class="badge badge-success">Complete</span>
+                      {% elif comment.replies[-1].admin_status == 'user' %}
+                        <span class="badge badge-secondary">User</span>
+                      {% else %}
+                        <span class="badge badge-secondary">{{ comment.replies[-1].admin_status }}</span>
                       {% endif %}
-                      <div style="position: relative; min-height: 1.2em;">
-                        <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
-                          Replied at: {{ comment.replies[-1].reply_time|local_time }}
-                        </span>
-                      </div>
+                    </p>
+                    {% if comment.replies[-1].admin_image %}
+                      <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.replies[-1].admin_image) }}"
+                           alt="Reply Evidence"
+                           class="reply-thumbnail"
+                           style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
+                    {% endif %}
+                    <div style="position: relative; min-height: 1.2em;">
+                      <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
+                        Replied at: {{ comment.replies[-1].reply_time|local_time }}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-            {% endif %}
-          </div>
-        </a>
+            </div>
+          {% endif %}
+        </div>
       </div>
     {% endfor %}
     </div>
   </div>
   <script>
-    // Filtering using JavaScript
+    // Attach a click listener to each comment-card that navigates to its data-href.
+    document.querySelectorAll('.comment-card').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        // Check that the clicked target is not an interactive element
+        if (!e.target.closest('button') && !e.target.closest('form') && e.target.tagName.toLowerCase() !== 'a') {
+          window.location.href = card.getAttribute('data-href');
+        }
+      });
+    });
+    
+    // Existing filtering script...
     const catButtons = document.querySelectorAll('.filter-cat');
     const progButtons = document.querySelectorAll('.filter-prog');
     const commentCards = document.querySelectorAll('.comment-card');
     const commentCountEl = document.getElementById('comment-count');
-    
     let selectedCat = 'All';
     let selectedProg = 'All';
     
@@ -279,7 +285,8 @@
     });
     
     document.querySelectorAll('.show-more-replies').forEach(btn => {
-      btn.addEventListener('click', function(){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
         const repliesContainer = this.nextElementSibling;
         if(repliesContainer.style.display === 'none'){
           repliesContainer.style.display = 'block';
