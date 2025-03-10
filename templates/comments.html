@@ -47,6 +47,27 @@
       <a href="{{ url_for('new_comment') }}" class="btn btn-primary">Add New Comment</a>
     </p>
     
+    <!-- NEW: Sorting UI -->
+    {% set current_sort = request.args.get('sort_by', 'popularity') %}
+    {% set current_order = request.args.get('order', 'desc') %}
+    {% macro sort_link(method, label) %}
+      {%- if current_sort == method -%}
+         {%- set new_order = 'asc' if current_order == 'desc' else 'desc' -%}
+      {%- else -%}
+         {%- set new_order = 'desc' -%}
+      {%- endif -%}
+      <a href="{{ url_for('comments', sort_by=method, order=new_order, filter_category=filter_category, filter_progress=filter_progress) }}"
+         class="btn btn-sm btn-outline-secondary {% if current_sort==method %}active{% endif %}">
+         {{ label }} {% if current_sort==method %}({{ current_order }}){% endif %}
+      </a>
+    {% endmacro %}
+    <div class="mb-3">
+      <span>Sort by:</span>
+      {{ sort_link('popularity', 'Popularity') }}
+      {{ sort_link('progress', 'Progress') }}
+      {{ sort_link('time', 'Time') }}
+    </div>
+    
     <!-- New: Client-side filtering controls -->
     <div class="mb-4">
       <h5>Filter by Category:</h5>
@@ -56,7 +77,7 @@
       {% endfor %}
     </div>
     <div class="mb-4">
-      <h5>Filter by Latest Admin Reply Status:</h5>
+      <h5>Filter by Status:</h5>
       <button type="button" class="btn btn-sm btn-outline-secondary filter-prog" data-value="All">All</button>
       {% for prog in progress_groups %}
         <button type="button" class="btn btn-sm btn-outline-secondary filter-prog" data-value="{{ prog }}">{{ prog }}</button>
@@ -69,14 +90,14 @@
     <div id="comments-container">
     {% for comment in comments %}
       {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+      {% set user_replies = comment.replies | selectattr("admin_status", "eq", "user") | list %}
+      {% if admin_replies or user_replies %}
+        {% set latest_status = admin_replies[-1].admin_status if admin_replies else "No Reply" %}
+      {% else %}
+        {% set latest_status = "No Reply" %}
+      {% endif %}
       <div class="card my-2 comment-card" data-href="{{ url_for('comment_detail', comment_id=comment.id) }}" data-category="{{ comment.category }}" 
-      data-progress="{% with admin_replies = comment.replies | selectattr('admin_status', 'ne', 'user') | list %}
-                     {%- if admin_replies %}
-                       {{- (admin_replies | sort(attribute='reply_time'))[-1].admin_status -}}
-                     {%- else %}
-                       {{- 'No Reply' -}}
-                     {%- endif -%}
-                   {% endwith %}">
+      data-progress="{{ latest_status }}">
         <div class="card-body" style="position: relative;">
           <div style="position: absolute; top: 10px; right: 10px;">
             <span style="font-size: 0.8em;">

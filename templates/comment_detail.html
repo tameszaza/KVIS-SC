@@ -133,8 +133,8 @@
     {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
     {% set user_replies = comment.replies | selectattr("admin_status", "equalto", "user") | list %}
 
-    <h4>Support Responses ({{ admin_replies|length }})</h4>
     {% if admin_replies %}
+      <h4>Admin Responses ({{ admin_replies|length }})</h4>
       <div class="timeline mb-4 support-timeline">
         {% for reply in admin_replies %}
           <div class="timeline-item">
@@ -168,12 +168,10 @@
           </div>
         {% endfor %}
       </div>
-    {% else %}
-      <p>No support responses yet.</p>
     {% endif %}
 
-    <h4>User Responses ({{ user_replies|length }})</h4>
     {% if user_replies %}
+      <h4>User Responses ({{ user_replies|length }})</h4>
       <div class="timeline mb-4">
         {% for reply in user_replies %}
           <div class="timeline-item">
@@ -195,8 +193,10 @@
           </div>
         {% endfor %}
       </div>
-    {% else %}
-      <p>No user responses yet.</p>
+    {% endif %}
+    
+    {% if not comment.replies %}
+      <h5 class="mb-5">No reply</h5>
     {% endif %}
     
     <!-- Reply submission form -->

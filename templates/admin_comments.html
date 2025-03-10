@@ -71,9 +71,8 @@
     
     <div id="comments-container">
       {% for comment in comments %}
-        {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
-        {% if admin_replies %}
-          {% set latest_status = admin_replies[-1].admin_status %}
+        {% if comment.replies %}
+          {% set latest_status = comment.replies[-1].admin_status %}
         {% else %}
           {% set latest_status = "No Reply" %}
         {% endif %}
@@ -112,20 +111,10 @@
             <!-- Timeline for admin replies -->
             <div class="timeline mt-3">
               {% for reply in comment.replies %}
-                <div class="timeline-item" id="reply_{{ reply.id }}">
+                <div class="timeline-item">
                   <div class="timeline-panel">
-                    <div class="timeline-heading mb-2" style="position: relative;">
+                    <div class="timeline-heading mb-2">
                       <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
-                      <!-- Moved Edit button to top right -->
-                      <button class="btn btn-sm btn-primary edit-reply" 
-                              style="position: absolute; top: 0; right: 0;"
-                              data-comment-id="{{ comment.id }}"
-                              data-reply-id="{{ reply.id }}" 
-                              data-reply-text="{{ reply.reply_text }}" 
-                              data-progress="{{ reply.progress }}" 
-                              data-status="{{ reply.admin_status }}">
-                        Edit
-                      </button>
                     </div>
                     <div class="timeline-body">
                       <p>
@@ -136,8 +125,6 @@
                           <span class="badge badge-warning">In Progress</span>
                         {% elif reply.admin_status == 'complete' %}
                           <span class="badge badge-success">Complete</span>
-                        {% elif reply.admin_status == 'user' %}
-                          <span class="badge badge-secondary">User</span>
                         {% else %}
                           <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                         {% endif %}
@@ -159,16 +146,15 @@
               {% endfor %}
             </div>
             <!-- Reply form -->
-            <form method="post" enctype="multipart/form-data" class="mt-3 reply-form" id="admin-reply-form-{{ comment.id }}">
+            <form method="post" enctype="multipart/form-data" class="mt-3">
               <input type="hidden" name="comment_id" value="{{ comment.id }}">
-              <input type="hidden" name="reply_id" id="reply_id_input_{{ comment.id }}" value="">
               <div class="form-group">
-                <label for="reply_input_{{ comment.id }}">Reply</label>
-                <textarea name="reply" id="reply_input_{{ comment.id }}" class="form-control" placeholder="Type your reply here..."></textarea>
+                <label for="reply_{{ comment.id }}">Reply</label>
+                <textarea name="reply" id="reply_{{ comment.id }}" class="form-control" placeholder="Type your reply here..."></textarea>
               </div>
               <div class="form-group">
-                <label for="status_input_{{ comment.id }}">Status</label>
-                <select name="status" id="status_input_{{ comment.id }}" class="form-control">
+                <label for="status_{{ comment.id }}">Status</label>
+                <select name="status" id="status_{{ comment.id }}" class="form-control">
                   <option value="coordinating">Coordinating</option>
                   <option value="in progress">In Progress</option>
                   <option value="complete">Complete</option>
@@ -176,51 +162,18 @@
               </div>
               <!-- NEW: Progress bar input -->
               <div class="form-group">
-                <label for="progress_input_{{ comment.id }}">Progress: <span id="progress_val_{{ comment.id }}">0%</span></label>
-                <input type="range" class="form-control-range" name="progress" id="progress_input_{{ comment.id }}" min="0" max="100" value="0">
+                <label for="progress_{{ comment.id }}">Progress: <span id="progress_val_{{ comment.id }}">0%</span></label>
+                <input type="range" class="form-control-range" name="progress" id="progress_{{ comment.id }}" min="0" max="100" value="{% if comment.replies %}{{ comment.replies[-1].progress }}{% else %}0{% endif %}">
               </div>
-              <div class="form-group">
-                <label for="reply_image_{{ comment.id }}">Image (Optional)</label>
-                <input type="file" name="reply_image" id="reply_image_{{ comment.id }}" class="form-control-file">
-              </div>
-              <button type="submit" name="action" value="reply" class="btn btn-success btn-sm">Submit Reply</button>
+              <button type="submit" name="action" value="reply" class="btn btn-success btn-sm">Reply</button>
               <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm('Delete this reply?');">Delete</button>
-              <button type="button" id="cancel-edit_{{ comment.id }}" class="btn btn-secondary btn-sm cancel-edit" style="display:none;">Cancel Edit</button>
             </form>
 
             <script>
-              // When an Edit button is clicked, fill the reply form with the reply data
-              document.querySelectorAll('.edit-reply').forEach(function(button){
-                button.addEventListener('click', function(){
-                  var commentId = this.getAttribute('data-comment-id');
-                  // Use the unique IDs for the reply form for this comment
-                  document.getElementById('reply_id_input_' + commentId).value = this.getAttribute('data-reply-id');
-                  document.getElementById('reply_input_' + commentId).value = this.getAttribute('data-reply-text');
-                  document.getElementById('progress_input_' + commentId).value = this.getAttribute('data-progress');
-                  document.getElementById('progress_val_' + commentId).innerText = this.getAttribute('data-progress') + '%';
-                  document.getElementById('status_input_' + commentId).value = this.getAttribute('data-status');
-                  document.getElementById('cancel-edit_' + commentId).style.display = 'inline-block';
-                });
-              });
-              // Update displayed progress value when the range input changes
-              document.querySelectorAll('input[type="range"]').forEach(function(rangeInput){
+              // Update the displayed progress percentage when range changes
+              document.querySelectorAll('input[type="range"]').forEach(function(rangeInput) {
                 rangeInput.addEventListener('input', function(){
-                  // Find the progress_val element based on the input's id suffix (comment id)
-                  var parts = this.id.split('_');
-                  var commentId = parts[parts.length - 1];
-                  document.getElementById('progress_val_' + commentId).innerText = this.value + '%';
-                });
-              });
-              // Cancel edit: clear the hidden reply_id and reset the form fields
-              document.querySelectorAll('.cancel-edit').forEach(function(btn){
-                btn.addEventListener('click', function(){
-                  var commentId = this.id.split('_')[1];
-                  document.getElementById('reply_id_input_' + commentId).value = "";
-                  document.getElementById('reply_input_' + commentId).value = "";
-                  document.getElementById('progress_input_' + commentId).value = 0;
-                  document.getElementById('progress_val_' + commentId).innerText = '0%';
-                  document.getElementById('status_input_' + commentId).value = 'coordinating';
-                  this.style.display = 'none';
+                  document.getElementById('progress_val_' + this.id.split('_')[1]).innerText = this.value + '%';
                 });
               });
             </script>

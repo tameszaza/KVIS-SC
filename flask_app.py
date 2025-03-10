@@ -925,53 +925,49 @@ class CommentBoxForm(FlaskForm):
 @app.route('/comments', methods=['GET', 'POST'])
 def comments():
     form = CommentBoxForm()  # Changed here
-    if form.validate_on_submit():
-        # Process the evidence file if uploaded.
-        evidence_filename = None
-        if form.evidence.data and form.evidence.data.filename:
-            uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
-            if not os.path.exists(uploads_dir):
-                os.makedirs(uploads_dir)
-            evidence_filename = secure_filename(form.evidence.data.filename)
-            file_path = os.path.join(uploads_dir, evidence_filename)
-            compress_and_save_image(form.evidence.data, file_path, file_path)
-        # Combine fields into content but do not put urgency in the text now.
-        content = ("From: " + (form.full_name.data or "Anonymous") + " (" + form.status.data + ")\n" +
-                   "Problem/Comment: " + form.problem_comment.data + "\n" +
-                   "Suggested: " + (form.suggested_solution.data or "N/A") + "\n" +
-                   "Contact: " + (form.contact.data or "N/A"))
-        new_comment = Comment(
-            content=content,
-            urgency=form.urgency.data,  # Store urgency separately
-            category=form.category.data,  # Adjust as needed
-            evidence=evidence_filename
-        )
-        db.session.add(new_comment)
-        db.session.commit()
-        flash("Comment posted anonymously!", "success")
-        return redirect(url_for('comments'))
+    # NEW: read sort_by and order
+    sort_by = request.args.get('sort_by', 'popularity')
+    order = request.args.get('order', 'desc')   # 'asc' or 'desc'
     
-    # NEW: Define get_latest_status to handle None values
-    def get_latest_status(comment):
-        if comment.replies:
-            latest_reply = max(comment.replies, key=lambda r: r.reply_time)
-            return latest_reply.admin_status if latest_reply.admin_status is not None else "No Reply"
-        return "No Reply"
-    
-    # Filter by comment category and reply status
+    def get_progress(comment):
+        admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+        if admin_replies:
+            latest = max(admin_replies, key=lambda r: r.reply_time)
+            return latest.progress if latest.progress is not None else 0
+        return 0
+
+    # NEW: sorting logic for only three methods
+    if sort_by == 'popularity':
+        if order == 'asc':
+            sorted_comments = Comment.query.order_by(Comment.upvotes.asc()).all()
+        else:
+            sorted_comments = Comment.query.order_by(Comment.upvotes.desc()).all()
+    elif sort_by == 'time':
+        if order == 'asc':
+            sorted_comments = Comment.query.order_by(Comment.created_at.asc()).all()
+        else:
+            sorted_comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    elif sort_by == 'progress':
+        all_comments = Comment.query.all()
+        sorted_comments = sorted(all_comments, key=get_progress, reverse=True if order=='desc' else False)
+    else:
+        sorted_comments = Comment.query.order_by(Comment.upvotes.desc()).all()
+
+    # Filtering remains the same
     filter_category = request.args.get('filter_category', 'All')
     filter_progress = request.args.get('filter_progress', 'All')
-    all_comments = Comment.query.order_by(Comment.created_at.desc()).all()
-    
     if filter_category != 'All':
-        all_comments = [c for c in all_comments if c.category == filter_category]
+        sorted_comments = [c for c in sorted_comments if c.category == filter_category]
     if filter_progress != 'All':
-        all_comments = [c for c in all_comments if get_latest_status(c) == filter_progress]
-    
-    # Build sets for filtering UI
+        def get_latest_status(comment):
+            if comment.replies:
+                latest = max(comment.replies, key=lambda r: r.reply_time)
+                return latest.admin_status if latest.admin_status is not None else "No Reply"
+            return "No Reply"
+        sorted_comments = [c for c in sorted_comments if get_latest_status(c) == filter_progress]
+
+    # Build filtering sets remains unchanged
     categories = set(c.category for c in Comment.query.all())
-    
-    # Modified: Filter out 'user' status from progress_set
     progress_set = set()
     for comment in Comment.query.all():
         admin_replies = [r for r in comment.replies if r.admin_status != 'user']
@@ -980,40 +976,56 @@ def comments():
             progress_set.add(latest.admin_status)
         else:
             progress_set.add("No Reply")
-    
-    return render_template('comments.html', form=form, comments=all_comments,
+
+    return render_template('comments.html', form=form, comments=sorted_comments,
                            filter_category=filter_category, filter_progress=filter_progress,
                            categories=sorted(categories), progress_groups=sorted(progress_set))
 
-# Admin route for managing comments (reply or delete)
-def get_latest_admin_status(comment):
-    # Filter out user replies and sort by timestamp
-    admin_replies = [r for r in comment.replies if r.admin_status != 'user']
-    if admin_replies:
-        latest_reply = max(admin_replies, key=lambda r: r.reply_time)
-        return latest_reply.admin_status
-    return "No Reply"
 
 @app.route('/admin/comments', methods=['GET', 'POST'])
 @login_required
 def admin_comments():
+    sort_by = request.args.get('sort_by', 'created_desc')  # default sort by creation descending
+
+    def get_progress(comment):
+        admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+        if admin_replies:
+            latest = max(admin_replies, key=lambda r: r.reply_time)
+            return latest.progress if latest.progress is not None else 0
+        return 0
+
+    if sort_by == 'progress':
+        all_comments = Comment.query.all()
+        comments_list = sorted(all_comments, key=get_progress, reverse=True)
+    elif sort_by == 'time_asc':
+        comments_list = Comment.query.order_by(Comment.created_at.asc()).all()
+    else:  # default: created_desc
+        comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
+
     filter_cat = request.args.get('filter_category', 'All')
     filter_progress = request.args.get('filter_progress', 'All')
-    
-    if filter_cat == 'All':
-        comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
-    else:
-        comments_list = Comment.query.filter_by(category=filter_cat).order_by(Comment.created_at.desc()).all()
-    
-    # Use the updated helper function
+    if filter_cat != 'All':
+        comments_list = [c for c in comments_list if c.category == filter_cat]
     if filter_progress != 'All':
+        def get_latest_admin_status(comment):
+            admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+            if admin_replies:
+                latest = max(admin_replies, key=lambda r: r.reply_time)
+                return latest.admin_status
+            return "No Reply"
         comments_list = [c for c in comments_list if get_latest_admin_status(c) == filter_progress]
-    
+
     all_comments = Comment.query.all()
+    def get_latest_admin_status(comment):
+        admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+        if admin_replies:
+            latest = max(admin_replies, key=lambda r: r.reply_time)
+            return latest.admin_status
+        return "No Reply"
     progress_groups = set(get_latest_admin_status(c) for c in all_comments)
     progress_groups = sorted(progress_groups)
     
-    # Process POST actions (reply or delete)
+    # ...existing POST processing code...
     if request.method == 'POST':
         comment_id = request.form.get('comment_id')
         action = request.form.get('action')
@@ -1021,16 +1033,15 @@ def admin_comments():
         if action == 'reply':
             reply_text = request.form.get('reply')
             new_status = request.form.get('status')
-            progress_val = int(request.form.get('progress', 0))  # NEW: get progress value
-            reply_id = request.form.get('reply_id')  # If editing an existing reply
+            progress_val = int(request.form.get('progress', 0))
+            reply_id = request.form.get('reply_id')
             reply_image = request.files.get('reply_image')
             if reply_id:
-                # Edit existing reply
                 reply = CommentReply.query.get(reply_id)
                 reply.reply_text = reply_text
                 reply.admin_status = new_status
                 reply.reply_time = datetime.utcnow()
-                reply.progress = progress_val  # NEW: update progress
+                reply.progress = progress_val
                 if reply_image and reply_image.filename:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
                     if not os.path.exists(uploads_dir):
@@ -1040,7 +1051,6 @@ def admin_comments():
                     compress_and_save_image(reply_image, image_path, image_path)
                     reply.admin_image = filename
             else:
-                # Create a new reply
                 new_reply = CommentReply(comment_id=comment.id, reply_text=reply_text,
                                           admin_status=new_status, progress=progress_val)
                 if reply_image and reply_image.filename:
@@ -1057,7 +1067,6 @@ def admin_comments():
             reply_id = request.form.get('reply_id')
             if reply_id:
                 reply = CommentReply.query.get(reply_id)
-                # Delete reply image if exists
                 if reply.admin_image:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
                     image_path = os.path.join(uploads_dir, reply.admin_image)
@@ -1065,7 +1074,6 @@ def admin_comments():
                         os.remove(image_path)
                 db.session.delete(reply)
             else:
-                # Delete comment evidence if exists
                 if comment.evidence:
                     uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
                     evidence_path = os.path.join(uploads_dir, comment.evidence)
