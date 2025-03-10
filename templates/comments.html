@@ -65,20 +65,18 @@
     
     <!-- Display total number of comments -->
     <h3>Existing Comments</h3>
-    <h6 class="text-muted" id="comment-count">now showing {{ comments|length }}</h6>
+    <h6 class="text-muted mb-3" id="comment-count">now showing {{ comments|length }}</h6>
     <div id="comments-container">
     {% for comment in comments %}
-      <div class="card my-2 comment-card" data-href="{{ url_for('comment_detail', comment_id=comment.id) }}" data-category="{{ comment.category }}" data-progress="
-        {% if comment.replies %}
-          {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
-          {% if admin_replies %}
-            {{ admin_replies[-1].admin_status }}
-          {% else %}
-            No Reply
-          {% endif %}
-        {% else %}
-          No Reply
-        {% endif %}">
+      {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+      <div class="card my-2 comment-card" data-href="{{ url_for('comment_detail', comment_id=comment.id) }}" data-category="{{ comment.category }}" 
+      data-progress="{% with admin_replies = comment.replies | selectattr('admin_status', 'ne', 'user') | list %}
+                     {%- if admin_replies %}
+                       {{- (admin_replies | sort(attribute='reply_time'))[-1].admin_status -}}
+                     {%- else %}
+                       {{- 'No Reply' -}}
+                     {%- endif -%}
+                   {% endwith %}">
         <div class="card-body" style="position: relative;">
           <div style="position: absolute; top: 10px; right: 10px;">
             <span style="font-size: 0.8em;">
@@ -140,17 +138,18 @@
           </small>
           <div class="mt-2">
           </div>
-          {% if comment.replies %}
-            <span class="text-muted">(Replies: {{ comment.replies|length }})</span>
-            {% if comment.replies|length > 1 %}
+          {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+          {% if admin_replies %}
+            <span class="text-muted">(Responses: {{ admin_replies|length }})</span>
+            {% if admin_replies|length > 1 %}
               <button class="btn btn-sm btn-link show-more-replies" onclick="event.stopPropagation();">Show More</button>
               <div class="additional-replies" style="display: none;">
-                {% for reply in comment.replies[0:-1] %}
+                {% for reply in admin_replies[0:-1] %}
                   <div class="timeline">
                     <div class="timeline-item">
                       <div class="timeline-panel">
                         <div class="timeline-heading mb-2">
-                          <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
+                          <h6 class="mb-1">Response: {{ reply.reply_text }}</h6>
                         </div>
                         <div class="timeline-body">
                           <p>
@@ -161,15 +160,13 @@
                               <span class="badge badge-warning">In Progress</span>
                             {% elif reply.admin_status == 'complete' %}
                               <span class="badge badge-success">Complete</span>
-                            {% elif reply.admin_status == 'user' %}
-                              <span class="badge badge-secondary">User</span>
                             {% else %}
                               <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                             {% endif %}
                           </p>
                           {% if reply.admin_image %}
                             <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
-                                 alt="Reply Evidence"
+                                 alt="Response Evidence"
                                  class="reply-thumbnail"
                                  style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
                           {% endif %}
@@ -189,32 +186,30 @@
               <div class="timeline-item">
                 <div class="timeline-panel">
                   <div class="timeline-heading mb-2">
-                    <h6 class="mb-1">Reply: {{ comment.replies[-1].reply_text }}</h6>
+                    <h6 class="mb-1">Response: {{ admin_replies[-1].reply_text }}</h6>
                   </div>
                   <div class="timeline-body">
                     <p>
                       Status:
-                      {% if comment.replies[-1].admin_status == 'coordinating' %}
+                      {% if admin_replies[-1].admin_status == 'coordinating' %}
                         <span class="badge badge-info">Coordinating</span>
-                      {% elif comment.replies[-1].admin_status == 'in progress' %}
+                      {% elif admin_replies[-1].admin_status == 'in progress' %}
                         <span class="badge badge-warning">In Progress</span>
-                      {% elif comment.replies[-1].admin_status == 'complete' %}
+                      {% elif admin_replies[-1].admin_status == 'complete' %}
                         <span class="badge badge-success">Complete</span>
-                      {% elif comment.replies[-1].admin_status == 'user' %}
-                        <span class="badge badge-secondary">User</span>
                       {% else %}
-                        <span class="badge badge-secondary">{{ comment.replies[-1].admin_status }}</span>
+                        <span class="badge badge-secondary">{{ admin_replies[-1].admin_status }}</span>
                       {% endif %}
                     </p>
-                    {% if comment.replies[-1].admin_image %}
-                      <img src="{{ url_for('static', filename='uploads/comments/' ~ comment.replies[-1].admin_image) }}"
-                           alt="Reply Evidence"
+                    {% if admin_replies[-1].admin_image %}
+                      <img src="{{ url_for('static', filename='uploads/comments/' ~ admin_replies[-1].admin_image) }}"
+                           alt="Response Evidence"
                            class="reply-thumbnail"
                            style="width: 100%; max-width: 500px; height: auto; max-height: 500px; object-fit: contain; display: block; margin: 0 auto;">
                     {% endif %}
                     <div style="position: relative; min-height: 1.2em;">
                       <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
-                        Replied at: {{ comment.replies[-1].reply_time|local_time }}
+                        Replied at: {{ admin_replies[-1].reply_time|local_time }}
                       </span>
                     </div>
                   </div>

@@ -71,13 +71,9 @@
     
     <div id="comments-container">
       {% for comment in comments %}
-        {% if comment.replies %}
-          {% set latest_status = comment.replies | selectattr("admin_status", "ne", "user") | last %}
-          {% if latest_status %}
-            {% set latest_status = latest_status.admin_status %}
-          {% else %}
-            {% set latest_status = "No Reply" %}
-          {% endif %}
+        {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+        {% if admin_replies %}
+          {% set latest_status = admin_replies[-1].admin_status %}
         {% else %}
           {% set latest_status = "No Reply" %}
         {% endif %}
@@ -116,50 +112,50 @@
             <!-- Timeline for admin replies -->
             <div class="timeline mt-3">
               {% for reply in comment.replies %}
-                {% if reply.admin_status != 'user' %}
-                  <div class="timeline-item" id="reply_{{ reply.id }}">
-                    <div class="timeline-panel">
-                      <div class="timeline-heading mb-2" style="position: relative;">
-                        <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
-                        <!-- Moved Edit button to top right -->
-                        <button class="btn btn-sm btn-primary edit-reply" 
-                                style="position: absolute; top: 0; right: 0;"
-                                data-comment-id="{{ comment.id }}"
-                                data-reply-id="{{ reply.id }}" 
-                                data-reply-text="{{ reply.reply_text }}" 
-                                data-progress="{{ reply.progress }}" 
-                                data-status="{{ reply.admin_status }}">
-                          Edit
-                        </button>
-                      </div>
-                      <div class="timeline-body">
-                        <p>
-                          Status:
-                          {% if reply.admin_status == 'coordinating' %}
-                            <span class="badge badge-info">Coordinating</span>
-                          {% elif reply.admin_status == 'in progress' %}
-                            <span class="badge badge-warning">In Progress</span>
-                          {% elif reply.admin_status == 'complete' %}
-                            <span class="badge badge-success">Complete</span>
-                          {% else %}
-                            <span class="badge badge-secondary">{{ reply.admin_status }}</span>
-                          {% endif %}
-                        </p>
-                        <div style="position: relative; min-height: 1.2em;">
-                          <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
-                            Replied at: {{ reply.reply_time|local_time }}
-                          </span>
-                        </div>
-                        {% if reply.admin_image %}
-                          <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
-                               alt="Reply Evidence"
-                               class="reply-thumbnail"
-                               style="width: 100%; max-width: 300px; height: auto; max-height: 300px; object-fit: contain; display: block; margin: 0 auto;">
+                <div class="timeline-item" id="reply_{{ reply.id }}">
+                  <div class="timeline-panel">
+                    <div class="timeline-heading mb-2" style="position: relative;">
+                      <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
+                      <!-- Moved Edit button to top right -->
+                      <button class="btn btn-sm btn-primary edit-reply" 
+                              style="position: absolute; top: 0; right: 0;"
+                              data-comment-id="{{ comment.id }}"
+                              data-reply-id="{{ reply.id }}" 
+                              data-reply-text="{{ reply.reply_text }}" 
+                              data-progress="{{ reply.progress }}" 
+                              data-status="{{ reply.admin_status }}">
+                        Edit
+                      </button>
+                    </div>
+                    <div class="timeline-body">
+                      <p>
+                        Status:
+                        {% if reply.admin_status == 'coordinating' %}
+                          <span class="badge badge-info">Coordinating</span>
+                        {% elif reply.admin_status == 'in progress' %}
+                          <span class="badge badge-warning">In Progress</span>
+                        {% elif reply.admin_status == 'complete' %}
+                          <span class="badge badge-success">Complete</span>
+                        {% elif reply.admin_status == 'user' %}
+                          <span class="badge badge-secondary">User</span>
+                        {% else %}
+                          <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                         {% endif %}
+                      </p>
+                      <div style="position: relative; min-height: 1.2em;">
+                        <span style="position: absolute; left: 0; bottom: 0; font-size: 0.8em; opacity: 0.6;">
+                          Replied at: {{ reply.reply_time|local_time }}
+                        </span>
                       </div>
+                      {% if reply.admin_image %}
+                        <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                             alt="Reply Evidence"
+                             class="reply-thumbnail"
+                             style="width: 100%; max-width: 300px; height: auto; max-height: 300px; object-fit: contain; display: block; margin: 0 auto;">
+                      {% endif %}
                     </div>
                   </div>
-                {% endif %}
+                </div>
               {% endfor %}
             </div>
             <!-- Reply form -->

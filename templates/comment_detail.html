@@ -1,36 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
-  <style>
+<style>
+    :root {
+      --circle-size: 20px;
+    }
+
+    /* Timeline container */
     .timeline {
       position: relative;
-      padding: 20px 0;
       list-style: none;
+      /* Remove the top/bottom line from the original approach */
+      padding: 20px 0;
+      margin: 0; /* Optional if you want less spacing */
     }
-    .timeline:before {
-      position: absolute;
-      left: 30px;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background-color: #e9ecef;
-      content: '';
-    }
+
+    /* Individual timeline items */
     .timeline-item {
       position: relative;
       margin-bottom: 20px;
-      padding-left: 60px;
+      padding-left: 60px; /* space for the circle/line on the left */
     }
-    .timeline-item:before {
+
+    /* Draw the circle for each timeline item */
+    .timeline-item::before {
+      content: '';
       position: absolute;
-      left: 20px;
+      left: calc(30px - var(--circle-size) / 2);
       top: 0;
-      width: 20px;
-      height: 20px;
+      width: var(--circle-size);
+      height: var(--circle-size);
       border-radius: 50%;
       background-color: #fff;
       border: 2px solid #6c757d;
-      content: '';
     }
+
+    /* Draw the connector line only if it's NOT the last item */
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 30px; /* Align with the center of the circle */
+      top: var(--circle-size);
+      bottom: -20px; /* Extend to the next item’s circle area */
+      width: 2px;
+      background-color: #e9ecef;
+    }
+
+    /* Panel styling remains the same */
     .timeline-panel {
       background: #f8f9fa;
       border: 1px solid #e9ecef;
@@ -115,14 +130,17 @@
     </div>
     
     <!-- Timeline for replies (matches comments.html timeline style) -->
-    <h4>Replies ({{ comment.replies|length }})</h4>
-    {% if comment.replies %}
-      <div class="timeline mb-4">
-        {% for reply in comment.replies %}
+    {% set admin_replies = comment.replies | selectattr("admin_status", "ne", "user") | list %}
+    {% set user_replies = comment.replies | selectattr("admin_status", "equalto", "user") | list %}
+
+    <h4>Support Responses ({{ admin_replies|length }})</h4>
+    {% if admin_replies %}
+      <div class="timeline mb-4 support-timeline">
+        {% for reply in admin_replies %}
           <div class="timeline-item">
             <div class="timeline-panel">
               <div class="timeline-heading mb-2">
-                <h6 class="mb-1">Reply: {{ reply.reply_text }}</h6>
+                <h6 class="mb-1">Response: {{ reply.reply_text }}</h6>
               </div>
               <div class="timeline-body">
                 <p>
@@ -133,33 +151,17 @@
                     <span class="badge badge-warning">In Progress</span>
                   {% elif reply.admin_status == 'complete' %}
                     <span class="badge badge-success">Complete</span>
-                  {% elif reply.admin_status == 'user' %}
-                    <span class="badge badge-secondary">User</span>
                   {% else %}
                     <span class="badge badge-secondary">{{ reply.admin_status }}</span>
                   {% endif %}
                 </p>
-                <div style="position: relative; min-height:1.2em;">
-                  <span style="position: absolute; left: 0; bottom: 0; font-size:0.8em; opacity:0.6;">
-                    Replied at: {{ reply.reply_time|local_time }}
-                  </span>
+                <div style="min-height:1.2em;">
+                  <span style="font-size:0.8em; opacity:0.6;">Replied at: {{ reply.reply_time|local_time }}</span>
                 </div>
                 {% if reply.admin_image %}
-                  <div class="mt-2 text-center">
-                    <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}" alt="Reply Evidence" style="max-width:300px; height:auto; object-fit:contain;">
-                  </div>
-                {% endif %}
-                {% if reply.admin_status != 'user' %}
-                  <div class="mt-2">
-                    <label>Progress:</label>
-                    <div class="progress mb-2">
-                      <div class="progress-bar" role="progressbar" style="width: {{ reply.progress }}%;
-                        {% if reply.admin_status == 'coordinating' %}background-color: #17a2b8{% elif reply.admin_status == 'in progress' %}background-color: #ffc107{% elif reply.admin_status == 'complete' %}background-color: #28a745{% else %}background-color: #6c757d{% endif %};"
-                        aria-valuenow="{{ reply.progress }}" aria-valuemin="0" aria-valuemax="100">
-                        {{ reply.progress }}%
-                      </div>
-                    </div>
-                  </div>
+                  <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                       alt="Response Evidence"
+                       style="width:100%; max-width:300px; height:auto; object-fit:contain; display:block; margin:0 auto;">
                 {% endif %}
               </div>
             </div>
@@ -167,7 +169,34 @@
         {% endfor %}
       </div>
     {% else %}
-      <p>No replies yet.</p>
+      <p>No support responses yet.</p>
+    {% endif %}
+
+    <h4>User Responses ({{ user_replies|length }})</h4>
+    {% if user_replies %}
+      <div class="timeline mb-4">
+        {% for reply in user_replies %}
+          <div class="timeline-item">
+            <div class="timeline-panel">
+              <div class="timeline-heading mb-2">
+                <h6 class="mb-1">User Reply: {{ reply.reply_text }}</h6>
+              </div>
+              <div class="timeline-body">
+                <div style="min-height:1.2em;">
+                  <span style="font-size:0.8em; opacity:0.6;">Replied at: {{ reply.reply_time|local_time }}</span>
+                </div>
+                {% if reply.admin_image %}
+                  <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}"
+                       alt="User Reply Image"
+                       style="width:100%; max-width:300px; height:auto; object-fit:contain; display:block; margin:0 auto;">
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No user responses yet.</p>
     {% endif %}
     
     <!-- Reply submission form -->
@@ -187,4 +216,5 @@
     
     <p class="mt-3"><a href="{{ url_for('comments') }}">Back to Comments</a></p>
   </div>
+  
 {% endblock %}

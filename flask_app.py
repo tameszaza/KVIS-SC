@@ -872,7 +872,7 @@ class Comment(db.Model):
     # NEW: Add a column to store evidence filename
     evidence = db.Column(db.String(200))
     # NEW: relationship for multiple admin replies
-    replies = db.relationship('CommentReply', backref='comment', lazy=True)
+    replies = db.relationship('CommentReply', backref='comment', lazy=True, cascade="all, delete-orphan")
     def __repr__(self):
         return f"<Comment {self.id}>"
 
@@ -951,62 +951,66 @@ def comments():
         flash("Comment posted anonymously!", "success")
         return redirect(url_for('comments'))
     
-    # NEW: Filtering by category and by progress (latest admin reply status)
+    # NEW: Define get_latest_status to handle None values
+    def get_latest_status(comment):
+        if comment.replies:
+            latest_reply = max(comment.replies, key=lambda r: r.reply_time)
+            return latest_reply.admin_status if latest_reply.admin_status is not None else "No Reply"
+        return "No Reply"
+    
+    # Filter by comment category and reply status
     filter_category = request.args.get('filter_category', 'All')
     filter_progress = request.args.get('filter_progress', 'All')
     all_comments = Comment.query.order_by(Comment.created_at.desc()).all()
     
-    # Helper: get latest status for a comment
-    def get_latest_status(comment):
-        if comment.replies:
-            return max(comment.replies, key=lambda r: r.reply_time).admin_status
-        return "No Reply"
-    
-    # Filter by category if needed
     if filter_category != 'All':
         all_comments = [c for c in all_comments if c.category == filter_category]
-    
-    # Filter by progress if needed
     if filter_progress != 'All':
         all_comments = [c for c in all_comments if get_latest_status(c) == filter_progress]
     
-    # Build available groups from all comments (without filtering)
+    # Build sets for filtering UI
     categories = set(c.category for c in Comment.query.all())
+    
+    # Modified: Filter out 'user' status from progress_set
     progress_set = set()
-    for c in Comment.query.all():
-        progress_set.add(get_latest_status(c))
+    for comment in Comment.query.all():
+        admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+        if admin_replies:
+            latest = max(admin_replies, key=lambda r: r.reply_time)
+            progress_set.add(latest.admin_status)
+        else:
+            progress_set.add("No Reply")
     
     return render_template('comments.html', form=form, comments=all_comments,
                            filter_category=filter_category, filter_progress=filter_progress,
                            categories=sorted(categories), progress_groups=sorted(progress_set))
 
 # Admin route for managing comments (reply or delete)
+def get_latest_admin_status(comment):
+    # Filter out user replies and sort by timestamp
+    admin_replies = [r for r in comment.replies if r.admin_status != 'user']
+    if admin_replies:
+        latest_reply = max(admin_replies, key=lambda r: r.reply_time)
+        return latest_reply.admin_status
+    return "No Reply"
+
 @app.route('/admin/comments', methods=['GET', 'POST'])
 @login_required
 def admin_comments():
-    # Get filtering parameters for category and reply status
     filter_cat = request.args.get('filter_category', 'All')
     filter_progress = request.args.get('filter_progress', 'All')
     
-    # Fetch comments based on category filter first
     if filter_cat == 'All':
         comments_list = Comment.query.order_by(Comment.created_at.desc()).all()
     else:
         comments_list = Comment.query.filter_by(category=filter_cat).order_by(Comment.created_at.desc()).all()
     
-    # Helper: get latest reply status for a comment
-    def get_latest_status(comment):
-        if comment.replies:
-            return max(comment.replies, key=lambda r: r.reply_time).admin_status
-        return "No Reply"
-    
-    # Filter comments by latest reply status if needed
+    # Use the updated helper function
     if filter_progress != 'All':
-        comments_list = [c for c in comments_list if get_latest_status(c) == filter_progress]
+        comments_list = [c for c in comments_list if get_latest_admin_status(c) == filter_progress]
     
-    # Build progress groups from all comments for the filter UI
     all_comments = Comment.query.all()
-    progress_groups = set(get_latest_status(c) for c in all_comments)
+    progress_groups = set(get_latest_admin_status(c) for c in all_comments)
     progress_groups = sorted(progress_groups)
     
     # Process POST actions (reply or delete)
@@ -1139,6 +1143,70 @@ def submit_comment_box():
     flash("Your comment has been submitted!", "success")
     return redirect(url_for('comments'))
 
+# NEW: New route to create a comment using CommentBoxForm on a separate page.
+@app.route('/comments/new', methods=['GET', 'POST'])
+def new_comment():
+    form = CommentBoxForm()
+    if form.validate_on_submit():
+        evidence_filename = None
+        if form.evidence.data and form.evidence.data.filename:
+            uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            evidence_filename = secure_filename(form.evidence.data.filename)
+            file_path = os.path.join(uploads_dir, evidence_filename)
+            compress_and_save_image(form.evidence.data, file_path, file_path)
+        # Combine fields into content
+        content = (
+            "From: " + (form.full_name.data or "Anonymous") + " (" + form.status.data + ")\n" +
+            "Problem/Comment: " + form.problem_comment.data + "\n" +
+            "Suggested: " + (form.suggested_solution.data or "N/A") + "\n" +
+            "Contact: " + (form.contact.data or "N/A")
+        )
+        new_comment = Comment(
+            content=content,
+            urgency=form.urgency.data,
+            category=form.category.data,
+            evidence=evidence_filename
+        )
+        db.session.add(new_comment)
+        db.session.commit()
+        flash("Comment posted anonymously!", "success")
+        return redirect(url_for('comments'))
+    return render_template('new_comment.html', form=form)
+
+# NEW: Define a form for user replies if not already defined
+class UserReplyForm(FlaskForm):
+    reply_text = TextAreaField('Your Reply', validators=[DataRequired()])
+    reply_image = FileField('Image (Optional)')
+    submit = SubmitField('Submit Reply')
+
+# NEW: Add the comment_detail route to show a single comment and allow reply submissions
+@app.route('/comment/<int:comment_id>', methods=['GET', 'POST'])
+def comment_detail(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    form = UserReplyForm()
+    if form.validate_on_submit():
+        # Process a new reply from the user
+        new_reply = CommentReply(
+            comment_id=comment.id,
+            reply_text=form.reply_text.data,
+            admin_status='user',  # mark as a user reply
+            progress=None  # Ensure user replies do not set progress
+        )
+        if form.reply_image.data and form.reply_image.data.filename:
+            uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            filename = secure_filename(form.reply_image.data.filename)
+            file_path = os.path.join(uploads_dir, filename)
+            compress_and_save_image(form.reply_image.data, file_path, file_path)
+            new_reply.admin_image = filename
+        db.session.add(new_reply)
+        db.session.commit()
+        flash("Reply posted successfully!", "success")
+        return redirect(url_for('comment_detail', comment_id=comment.id))
+    return render_template('comment_detail.html', comment=comment, form=form)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)
