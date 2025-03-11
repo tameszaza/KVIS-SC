@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Submissions for "{{ data_form.title }}"</h2>
+  <!-- Download buttons -->
+  <div class="mb-3">
+    <a href="{{ url_for('admin_download_data_entries', form_id=data_form.id, format='csv') }}" class="btn btn-outline-primary btn-sm">Download CSV</a>
+    <a href="{{ url_for('admin_download_data_entries', form_id=data_form.id, format='xlsx') }}" class="btn btn-outline-success btn-sm">Download XLSX</a>
+  </div>
+  {% if entries %}
+    {% for entry in entries %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>Entry ID: {{ entry.id }}</strong> — Submitted by: {{ entry.user_email }} on {{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+        <div class="card-body">
+          {% set submission = entry.submission_data | fromjson %}
+          {% if submission %}
+            <table class="table table-sm table-bordered">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for key, value in submission.items() %}
+                  <tr>
+                    <td>{{ key }}</td>
+                    <td>{{ value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p><em>Submission data is invalid JSON.</em></p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No submissions submitted for this form yet.</p>
+  {% endif %}
+{% endblock %}

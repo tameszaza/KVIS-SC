@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Admin - Data Entries</h2>
+  {% if entries %}
+    {% for entry in entries %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>Entry ID: {{ entry.id }}</strong> — Form: {{ entry.data_form.title }} — Submitted by: {{ entry.user_email }} on {{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+        <div class="card-body">
+          {% set data = entry.submission_data | fromjson %}
+          {% if data %}
+            <table class="table table-sm table-bordered">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for key, value in data.items() %}
+                  <tr>
+                    <td>{{ key }}</td>
+                    <td>{{ value }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p><em>Submission data is invalid JSON.</em></p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No data entries available.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Edit Your Data Submission for "{{ entry.data_form.title }}"</h2>
+  <form method="POST" id="editForm" novalidate>
+    {{ form.hidden_tag() }}
+    <!-- Dynamic UI will be generated here -->
+    <div id="dynamicFields" class="mb-3"></div>
+    <!-- Hidden field to store JSON submission -->
+    <input type="hidden" id="submission_data" name="submission_data">
+    <button type="submit" class="btn btn-primary">Update</button>
+  </form>
+  
+  <script>
+    // Parse the schema from the data form
+    var schema = {};
+    try {
+      schema = JSON.parse('{{ entry.data_form.json_schema | safe }}');
+    } catch(e) {
+      alert("Invalid form schema.");
+    }
+    // Parse the existing submission data
+    var existingData = {};
+    try {
+      existingData = JSON.parse('{{ entry.submission_data | safe }}');
+    } catch(e) {
+      // If no data, leave empty
+    }
+    var container = document.getElementById("dynamicFields");
+    // Generate dynamic fields based on schema and pre-populate with existing data
+    for(var key in schema){
+      if(schema.hasOwnProperty(key)){
+        var fieldInfo = schema[key];
+        var div = document.createElement("div");
+        div.className = "form-group";
+        var label = document.createElement("label");
+        label.innerText = key;
+        div.appendChild(label);
+        
+        if(typeof fieldInfo === "object") {
+          if(fieldInfo.type === "multiple_choice"){
+            // Single-choice: create dropdown
+            var select = document.createElement("select");
+            select.className = "form-control";
+            select.name = key;
+            fieldInfo.options.forEach(function(opt){
+              var optionEl = document.createElement("option");
+              optionEl.value = opt;
+              optionEl.text = opt;
+              if(existingData[key] === opt){
+                optionEl.selected = true;
+              }
+              select.appendChild(optionEl);
+            });
+            div.appendChild(select);
+          } else if(fieldInfo.type === "multiple_choice_multiple"){
+            // Multiple-choice: create checkboxes group
+            var containerDiv = document.createElement("div");
+            fieldInfo.options.forEach(function(opt){
+              var wrapper = document.createElement("div");
+              wrapper.className = "form-check";
+              var checkbox = document.createElement("input");
+              checkbox.type = "checkbox";
+              checkbox.className = "form-check-input";
+              checkbox.name = key; // same name for grouping
+              checkbox.value = opt;
+              if(Array.isArray(existingData[key]) && existingData[key].indexOf(opt) !== -1){
+                checkbox.checked = true;
+              }
+              var cbLabel = document.createElement("label");
+              cbLabel.className = "form-check-label";
+              cbLabel.innerText = opt;
+              wrapper.appendChild(checkbox);
+              wrapper.appendChild(cbLabel);
+              containerDiv.appendChild(wrapper);
+            });
+            div.appendChild(containerDiv);
+          } else {
+            // For other object types, fallback to text input
+            var input = document.createElement("input");
+            input.className = "form-control";
+            input.type = "text";
+            input.name = key;
+            input.value = existingData[key] || "";
+            div.appendChild(input);
+          }
+        } else {
+          // If fieldInfo is a simple type, use an input field accordingly.
+          var input = document.createElement("input");
+          input.className = "form-control";
+          input.type = fieldInfo || "text";
+          input.name = key;
+          input.value = existingData[key] || "";
+          div.appendChild(input);
+        }
+        container.appendChild(div);
+      }
+    }
+    // On form submission, compile the values into JSON.
+    document.getElementById("editForm").addEventListener("submit", function(e){
+      var submission = {};
+      for(var key in schema){
+        if(schema.hasOwnProperty(key)){
+          var fieldInfo = schema[key];
+          if(typeof fieldInfo === "object" && fieldInfo.type === "multiple_choice_multiple"){
+            var checkboxes = document.querySelectorAll('input[type="checkbox"][name="'+key+'"]');
+            var selected = [];
+            checkboxes.forEach(function(cb){
+              if(cb.checked) selected.push(cb.value);
+            });
+            submission[key] = selected;
+          } else {
+            var elem = document.querySelector('[name="'+key+'"]');
+            if(elem) submission[key] = elem.value;
+          }
+        }
+      }
+      document.getElementById("submission_data").value = JSON.stringify(submission);
+    });
+  </script>
+{% endblock %}

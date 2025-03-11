@@ -20,6 +20,8 @@
         <a href="{{ url_for('news_overview') }}" class="text-white mr-3">News</a>
         <a href="{{ url_for('inventory') }}" class="text-white mr-3">Inventory</a>
         <a href="{{ url_for('comments') }}" class="text-white mr-3">Comments</a>
+        <!-- New link for Datacenter -->
+        <a href="{{ url_for('datacenter') }}" class="text-white mr-3">Data Center</a>
         {% if session.get('inventory_user') %}
           <a href="{{ url_for('ms_logout') }}" class="text-white mr-3">Logout</a>
         {% else %}

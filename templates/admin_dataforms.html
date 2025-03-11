@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Admin - Data Forms</h2>
+  <form method="POST" id="dataForm" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.title.label(class="form-label") }}
+      {{ form.title(class="form-control") }}
+    </div>
+    <div class="form-group">
+      <label>Form Fields</label>
+      <div id="fieldList"></div>
+      <button type="button" id="addFieldBtn" class="btn btn-secondary mt-2">+ Add Field</button>
+      <!-- Hidden input to store generated schema parts -->
+      <input type="hidden" id="json_schema_hidden" name="json_schema">
+      <small class="form-text text-muted">
+        For multiple choice, choose "Multiple Choice (Single)" for one-option selection or "Multiple Choice (Multiple)" for checkboxes; enter options comma separated.
+      </small>
+    </div>
+    <button type="submit" class="btn btn-success">Create Form</button>
+  </form>
+  
+  <hr>
+  <h3>Existing Data Forms</h3>
+  {% if forms %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Schema</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in forms %}
+          <tr>
+            <td>{{ f.title }}</td>
+            <td><pre>{{ f.json_schema }}</pre></td>
+            <td>
+              {# For admin, link to view submissions for that form #}
+              <a href="{{ url_for('admin_data_entries_by_form', form_id=f.id) }}" class="btn btn-primary btn-sm">View Submissions</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No data forms found.</p>
+  {% endif %}
+  
+  <script>
+    // Function to add a new field row with support for two multiple choice types
+    document.getElementById("addFieldBtn").addEventListener("click", function(){
+      var fieldDiv = document.createElement("div");
+      fieldDiv.className = "form-row mb-2 field-row";
+      fieldDiv.innerHTML = 
+         '<div class="col-md-4"><input type="text" class="form-control" name="field_label[]" placeholder="Field Label"></div>' +
+         '<div class="col-md-3">' +
+           '<select class="form-control field-type" name="field_type[]">' +
+             '<option value="text">Text</option>' +
+             '<option value="number">Number</option>' +
+             '<option value="date">Date</option>' +
+             '<option value="multiple_choice">Multiple Choice (Single)</option>' +
+             '<option value="multiple_choice_multiple">Multiple Choice (Multiple)</option>' +
+           '</select>' +
+         '</div>' +
+         '<div class="col-md-3 field-options d-none">' +
+           '<input type="text" class="form-control" name="field_options[]" placeholder="Comma separated options">' +
+         '</div>' +
+         '<div class="col-md-2"><button type="button" class="btn btn-danger remove-field">Remove</button></div>';
+      document.getElementById("fieldList").appendChild(fieldDiv);
+    });
+    // Show/hide options input based on field type
+    document.getElementById("fieldList").addEventListener("change", function(e){
+       if(e.target && e.target.matches("select.field-type")){
+          var row = e.target.closest(".field-row");
+          var optionsDiv = row.querySelector(".field-options");
+          if(e.target.value === "multiple_choice" || e.target.value === "multiple_choice_multiple"){
+              optionsDiv.classList.remove("d-none");
+          } else {
+              optionsDiv.classList.add("d-none");
+          }
+       }
+    });
+    // Remove field-row event
+    document.getElementById("fieldList").addEventListener("click", function(event) {
+      if(event.target && event.target.matches("button.remove-field")){
+         event.target.closest(".field-row").remove();
+      }
+    });
+    // On form submission, compile the JSON schema
+    document.getElementById("dataForm").addEventListener("submit", function(){
+      var labels = document.getElementsByName("field_label[]");
+      var types = document.getElementsByName("field_type[]");
+      var optionsList = document.getElementsByName("field_options[]");
+      var schema = {};
+      for (var i = 0; i < labels.length; i++){
+         var label = labels[i].value.trim();
+         var type = types[i].value;
+         if(label){
+           if(type === "multiple_choice" || type === "multiple_choice_multiple"){
+              var optsRaw = optionsList[i] ? optionsList[i].value : "";
+              var opts = optsRaw.split(",").map(function(o){ return o.trim(); }).filter(function(o){ return o; });
+              schema[label] = { type: type, options: opts };
+           } else {
+              schema[label] = type;
+           }
+         }
+      }
+      document.getElementById("json_schema_hidden").value = JSON.stringify(schema);
+    });
+  </script>
+{% endblock %}

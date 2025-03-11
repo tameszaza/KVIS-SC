@@ -39,7 +39,31 @@
     }
 
     /* NEW: Reduce font size on mobile devices */
-    
+    @media (max-width: 768px) {
+      .timeline-panel {
+        font-size: 0.9em;
+      }
+    }
+
+    /* NEW: Styles for option bar */
+    .option-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .option-bar span {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    .option-bar .btn {
+      margin-right: 5px;
+    }
+    .option-bar .btn.active {
+      background-color: #007bff;
+      color: white;
+    }
   </style>
   <div class="container">
     <h2 class="my-4">Comments Box <span style="font-size: 0.8em; opacity: 0.6;">version 0.0</span></h2>
@@ -61,22 +85,22 @@
          {{ label }} {% if current_sort==method %}({{ current_order }}){% endif %}
       </a>
     {% endmacro %}
-    <div class="mb-3">
-      <span>Sort by:</span>
+    <div class="option-bar">
+      <h5>Sort by:</h5>
       {{ sort_link('popularity', 'Popularity') }}
       {{ sort_link('progress', 'Progress') }}
       {{ sort_link('time', 'Time') }}
     </div>
     
     <!-- New: Client-side filtering controls -->
-    <div class="mb-4">
+    <div class="option-bar">
       <h5>Filter by Category:</h5>
       <button type="button" class="btn btn-sm btn-outline-primary filter-cat" data-value="All">All</button>
       {% for cat in categories %}
         <button type="button" class="btn btn-sm btn-outline-primary filter-cat" data-value="{{ cat }}">{{ cat }}</button>
       {% endfor %}
     </div>
-    <div class="mb-4">
+    <div class="option-bar">
       <h5>Filter by Status:</h5>
       <button type="button" class="btn btn-sm btn-outline-secondary filter-prog" data-value="All">All</button>
       {% for prog in progress_groups %}

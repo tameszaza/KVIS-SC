@@ -30,7 +30,8 @@ app.secret_key = 'your_secret_key'  # Replace with a secure key
 # Configure SQLAlchemy: reservations use the default DB, comments use a separate bind.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reservations.db'
 app.config['SQLALCHEMY_BINDS'] = {
-    'comments': 'sqlite:///comments.db'
+    'comments': 'sqlite:///comments.db',
+    'datacenter': 'sqlite:///datacenter.db'
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -623,7 +624,7 @@ def authorized():
         return redirect(url_for("user_login"))
     session["inventory_user"] = result["id_token_claims"].get("email") or result["id_token_claims"].get("preferred_username")
     flash("Logged in successfully via Microsoft.", "success")
-    return redirect(url_for("inventory"))
+    return redirect(url_for("home"))
 
 @app.route("/user/ms_logout")
 def ms_logout():
@@ -836,6 +837,16 @@ def local_time_filter(utc_dt):
     if (utc_dt is None):
         return ""
     return (utc_dt + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M')
+
+import json
+# ...existing code...
+
+@app.template_filter('fromjson')
+def fromjson_filter(s):
+    try:
+        return json.loads(s)
+    except Exception:
+        return {}
 
 # New route: Allow a signed-in user to cancel a pending request.
 @app.route('/user/cancel_request/<int:req_id>', methods=['POST'], endpoint='cancel_request')
@@ -1215,6 +1226,200 @@ def comment_detail(comment_id):
         flash("Reply posted successfully!", "success")
         return redirect(url_for('comment_detail', comment_id=comment.id))
     return render_template('comment_detail.html', comment=comment, form=form)
+
+# --- New: Datacenter System ---
+
+# New models for dynamic data forms and submissions
+class DataForm(db.Model):
+    __bind_key__ = 'datacenter'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False, unique=True)
+    json_schema = db.Column(db.Text, nullable=False)
+    def __repr__(self):
+        return f"<DataForm {self.title}>"
+
+class DataEntry(db.Model):
+    __bind_key__ = 'datacenter'
+    id = db.Column(db.Integer, primary_key=True)
+    data_form_id = db.Column(db.Integer, db.ForeignKey('data_form.id'), nullable=False)
+    user_email = db.Column(db.String(120), nullable=False)
+    submission_data = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_form = db.relationship('DataForm', backref=db.backref('entries', lazy=True))
+    def __repr__(self):
+        return f"<DataEntry {self.id} for DataForm {self.data_form_id}>"
+
+# New WTForms
+class DataFormCreationForm(FlaskForm):
+    title = StringField('Form Title', validators=[DataRequired()])
+    json_schema = TextAreaField('JSON Schema (e.g., {"field1": "text", "field2": "number"})', validators=[DataRequired()])
+    submit = SubmitField('Create Form')
+
+class DataEntryForm(FlaskForm):
+    submission_data = TextAreaField('Submission Data (JSON format)', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+class DataEntryEditForm(FlaskForm):
+    submission_data = TextAreaField('Submission Data (JSON format)', validators=[DataRequired()])
+    submit = SubmitField('Update')
+
+# New routes for datacenter system
+
+# Admin: Create and list data form configurations
+@app.route('/admin/dataforms', methods=['GET', 'POST'])
+@login_required
+def admin_dataforms():
+    form = DataFormCreationForm()
+    if form.validate_on_submit():
+        new_form = DataForm(
+            title=form.title.data.strip(),
+            json_schema=form.json_schema.data.strip()
+        )
+        db.session.add(new_form)
+        db.session.commit()
+        flash('Data form created!', 'success')
+        return redirect(url_for('admin_dataforms'))
+    forms_list = DataForm.query.all()
+    return render_template('admin_dataforms.html', form=form, forms=forms_list)
+
+# User: List available data forms in the data center
+@app.route('/datacenter')
+def datacenter():
+    if 'inventory_user' not in session:
+        flash("Please login to access Data Center", "error")
+        return redirect(url_for('user_login'))
+    forms_list = DataForm.query.all()
+    user_email = session['inventory_user']
+    user_submissions = {}
+    for form_obj in forms_list:
+        submission = DataEntry.query.filter_by(data_form_id=form_obj.id, user_email=user_email).first()
+        user_submissions[form_obj.id] = submission
+    return render_template('datacenter.html', forms=forms_list, user_submissions=user_submissions)
+
+# User: Submit new data for a selected data form
+@app.route('/datacenter/submit/<int:form_id>', methods=['GET', 'POST'])
+def submit_data(form_id):
+    if 'inventory_user' not in session:
+        flash("Please login to submit data", "error")
+        return redirect(url_for('user_login'))
+    data_form = DataForm.query.get_or_404(form_id)
+    form = DataEntryForm()
+    if form.validate_on_submit():
+        new_entry = DataEntry(
+            data_form_id=form_id,
+            user_email=session['inventory_user'],
+            submission_data=form.submission_data.data.strip()
+        )
+        db.session.add(new_entry)
+        db.session.commit()
+        flash("Data submitted successfully!", "success")
+        return redirect(url_for('datacenter'))
+    return render_template('submit_data.html', form=form, data_form=data_form)
+
+# User: Edit their own data submission
+@app.route('/datacenter/edit/<int:entry_id>', methods=['GET', 'POST'])
+def edit_data(entry_id):
+    if 'inventory_user' not in session:
+        flash("Please login to edit data", "error")
+        return redirect(url_for('user_login'))
+    entry = DataEntry.query.get_or_404(entry_id)
+    if entry.user_email != session['inventory_user']:
+        flash("Unauthorized", "danger")
+        return redirect(url_for('datacenter'))
+    form = DataEntryEditForm(obj=entry)
+    if form.validate_on_submit():
+        entry.submission_data = form.submission_data.data.strip()
+        db.session.commit()
+        flash("Data updated successfully", "success")
+        return redirect(url_for('datacenter'))
+    return render_template('edit_data.html', form=form, entry=entry)
+
+# Admin: View all data submissions in a table
+@app.route('/admin/data_entries')
+@login_required
+def admin_data_entries():
+    entries = DataEntry.query.order_by(DataEntry.created_at.desc()).all()
+    return render_template('admin_data_entries.html', entries=entries)
+
+# ...existing code...
+@app.route('/admin/data_entries/<int:form_id>')
+@login_required
+def admin_data_entries_by_form(form_id):
+    data_form = DataForm.query.get_or_404(form_id)
+    entries = DataEntry.query.filter_by(data_form_id=form_id).order_by(DataEntry.created_at.desc()).all()
+    return render_template('admin_data_entries_by_form.html', data_form=data_form, entries=entries)
+# ...existing code...
+
+# ...existing code...
+@app.route('/admin/data_entries/<int:form_id>/download')
+@login_required
+def admin_download_data_entries(form_id):
+    from io import StringIO, BytesIO
+    import csv
+    from flask import Response, send_file
+    data_form = DataForm.query.get_or_404(form_id)
+    entries = DataEntry.query.filter_by(data_form_id=form_id).order_by(DataEntry.created_at.desc()).all()
+    file_format = request.args.get('format', 'csv').lower()
+    # Constant headers
+    extra_headers = ["Entry ID", "User Email", "Submission Time"]
+    dynamic_headers = set()
+    row_data = []
+    for entry in entries:
+        try:
+            data = json.loads(entry.submission_data)
+        except Exception:
+            data = {}
+        dynamic_headers.update(data.keys())
+        row_data.append({
+            "Entry ID": entry.id,
+            "User Email": entry.user_email,
+            "Submission Time": entry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "data": data
+        })
+    dynamic_headers = sorted(dynamic_headers)
+    header = extra_headers + dynamic_headers
+    if file_format == 'xlsx':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(header)
+        for row_obj in row_data:
+            row = [
+                row_obj["Entry ID"],
+                row_obj["User Email"],
+                row_obj["Submission Time"]
+            ]
+            data = row_obj["data"]
+            # Append dynamic columns in order; leave blank if missing
+            for key in dynamic_headers:
+                row.append(data.get(key, ""))
+            ws.append(row)
+        stream = BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+        download_name = f"{data_form.title}.xlsx"
+        return send_file(stream, as_attachment=True, download_name=download_name,
+                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    else:
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(header)
+        for row_obj in row_data:
+            row = [
+                row_obj["Entry ID"],
+                row_obj["User Email"],
+                row_obj["Submission Time"]
+            ]
+            data = row_obj["data"]
+            for key in dynamic_headers:
+                row.append(data.get(key, ""))
+            writer.writerow(row)
+        output.seek(0)
+        response = Response(output.getvalue(), mimetype="text/csv")
+        response.headers["Content-Disposition"] = f"attachment; filename={data_form.title}.csv"
+        return response
+# ...existing code...
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)

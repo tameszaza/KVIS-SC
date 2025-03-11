@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Data Center</h2>
+  {% if forms %}
+    <ul class="list-group">
+      {% for form in forms %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            {{ form.title }}
+            {% if user_submissions[form.id] %}
+              <span class="badge badge-success ml-2">Submitted</span>
+            {% else %}
+              <span class="badge badge-warning ml-2">Not Submitted</span>
+            {% endif %}
+          </div>
+          <div>
+            {% if user_submissions[form.id] %}
+              <a href="{{ url_for('edit_data', entry_id=user_submissions[form.id].id) }}" class="btn btn-secondary btn-sm">Edit</a>
+            {% else %}
+              <a href="{{ url_for('submit_data', form_id=form.id) }}" class="btn btn-primary btn-sm">Submit Data</a>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No data forms available.</p>
+  {% endif %}
+{% endblock %}
