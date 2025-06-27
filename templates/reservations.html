@@ -91,8 +91,11 @@
          1) HORIZONTAL TIMELINE for MD+ screens
             (Bootstrap class: d-none d-md-block)
     -->
-<!-- Mobile Timeline Wrapper -->
 
+
+<!-- Study Room Timeline (MOBILE) -->
+{% set show_study = selected_room in ['ALL', 'STUDY', 'study_room_b1', 'study_room_b2', 'study_room_b3', 'kitchen'] %}
+{% if show_study %}
 <div class="d-block d-md-none" style="margin-bottom: 20px;">
   <!-- Mobile Time Labels Container -->
   <div class="d-block d-md-none" style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
@@ -109,7 +112,6 @@
       </div>
     {% endfor %}
   </div>
-
   <!-- Mobile Calendar Container -->
   <div id="mobileTimeline" style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;margin-bottom: 24px;">
     {% set lane_map = {
@@ -157,7 +159,7 @@
     {% endfor %}
 
     <!-- C) Reservation blocks -->
-    {% for res in reservations %}
+    {% for res in reservations if res.room in lane_map %}
       {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
       {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
       {% set duration      = end_minutes - start_minutes %}
@@ -195,9 +197,11 @@
     {% endfor %}
   </div>
 </div>
-<!-- Desktop Timeline Wrapper -->
-<div class="d-none d-md-block" style="margin-bottom: 20px;margin-top: 20px;">
+{% endif %}
 
+<!-- Study Room Timeline (DESKTOP) -->
+{% if show_study %}
+<div class="d-none d-md-block" style="margin-bottom: 20px;margin-top: 20px;">
   <!-- 1) Horizontal time scale at the top -->
   <div style="position: relative; width: 100%; height: 30px;">
     {% for h in range(0, 25) %}
@@ -211,7 +215,7 @@
   </div>
 
   <!-- 2) Calendar (lanes + dashed hour lines + reservations) below the time scale -->
- <div id="desktopTimeline" class="border" style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
+  <div id="desktopTimeline" class="border" style="position: relative; height: 300px; background: #f8f9fa; overflow: hidden;">
 
     {% set lane_map = {
       'study_room_b1': 0,
@@ -258,7 +262,7 @@
     {% endfor %}
 
     <!-- C) Reservation blocks -->
-    {% for res in reservations %}
+    {% for res in reservations if res.room in lane_map %}
       {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
       {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
       {% set duration      = end_minutes - start_minutes %}
@@ -296,6 +300,216 @@
     {% endfor %}
   </div>
 </div>
+{% endif %}
+
+<!-- Sport Court Timeline (MOBILE) -->
+{% set show_sport = selected_room in ['ALL', 'SPORT', 'badminton_court_1', 'badminton_court_2', 'badminton_court_3', 'basketball_volleyball_court', 'futsal_court'] %}
+{% if show_sport %}
+<div class="d-block d-md-none" style="margin-bottom: 20px;">
+  <!-- Mobile Time Labels Container -->
+  <div class="d-block d-md-none" style="float: left; width: 10%; position: relative; height: 2000px; background: #fff;">
+    {% for h in range(0, 25) %}
+      {% set top_px = (h / 24) * 2000 %}
+      <div style="position: absolute; top: {{ top_px }}px; transform: translateY(-50%);">
+        <small class="text-muted" style="font-size:0.7rem;">
+          {% if h < 24 %}
+            {{ "%02d:00"|format(h) }}
+          {% else %}
+            24:00
+          {% endif %}
+        </small>
+      </div>
+    {% endfor %}
+  </div>
+  <!-- Mobile Calendar Container -->
+  <div id="mobileTimelineSport" style="float: left; width: 90%; position: relative; height: 2000px; background: #f8f9fa; border: 1px solid #ddd;margin-bottom: 24px;">
+    {% set sport_lane_map = {
+      'badminton_court_1': 0,
+      'badminton_court_2': 1,
+      'badminton_court_3': 2,
+      'basketball_volleyball_court': 3,
+      'futsal_court': 4
+    } %}
+    {% set sport_lane_labels = {
+      0: "Badminton Court 1",
+      1: "Badminton Court 2",
+      2: "Badminton Court 3",
+      3: "Basketball / Volleyball Court",
+      4: "Futsal Court"
+    } %}
+    <!-- A) "Watermark" lane labels behind everything -->
+    {% for lane_i, label in sport_lane_labels.items() %}
+      <div style="
+        position: absolute;
+        top: 0;
+        left: calc({{ lane_i }} * 20%);
+        width: 20%;
+        height: 100%;
+        margin-left: 5px;
+        text-align: left;
+        font-size: 1rem;
+        color: rgba(0,0,0,0.4);
+        font-weight: bold;
+        z-index: 1;
+        pointer-events: none;">
+        {{ label }}
+      </div>
+    {% endfor %}
+
+    <!-- B) Light dashed horizontal lines for each hour (no text) -->
+    {% for h in range(0, 25) %}
+      {% set top_px = (h / 24) * 2000 %}
+      <div style="
+        position: absolute;
+        left: 0; width: 100%;
+        top: {{ top_px }}px;
+        border-top: 1px dashed #ddd;
+        z-index: 2;">
+      </div>
+    {% endfor %}
+
+    <!-- C) Reservation blocks -->
+    {% for res in reservations if res.room in sport_lane_map %}
+      {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+      {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
+      {% set duration      = end_minutes - start_minutes %}
+      {% set top_offset    = (start_minutes / 1440) * 2000 %}
+      {% set height_px     = (duration / 1440) * 2000 %}
+      {% set lane_index    = sport_lane_map.get(res.room, 0) %}
+
+      <div class="bg-success text-white rounded p-1"
+           style="position: absolute;
+                  left: calc({{ lane_index }} * 20% + 1%);
+                  width: 18%;
+                  top: {{ top_offset }}px;
+                  height: {{ height_px }}px;
+                  overflow: hidden;
+                  z-index: 3;
+                  cursor: pointer;"
+                  onclick="
+                  showReservationDetail(
+                    '{{ res.id }}',
+                    '{{ res.name|escapejs }}',
+                    '{{ res.room|escapejs }}',
+                    '{{ res.start_time.strftime('%Y-%m-%d') }}',
+                    '{{ res.start_time.strftime('%H:%M') }}',
+                    '{{ res.end_time.strftime('%H:%M') }}',
+                    '{{ res.purpose|escapejs }}'
+                  )
+                ">
+        <div class="small font-weight-bold">
+          {{ res.name }}
+        </div>
+        <div class="small">
+          {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Sport Court Timeline (DESKTOP) -->
+{% if show_sport %}
+<div class="d-none d-md-block" style="margin-bottom: 20px;margin-top: 20px;">
+  <!-- 1) Horizontal time scale at the top -->
+  <div style="position: relative; width: 100%; height: 30px;">
+    {% for h in range(0, 25) %}
+      {% set left = (h / 24) * 100 %}
+      <div style="position: absolute; left: {{ left }}%; top: 0;transform: translateX(-50%);">
+        <small class="text-muted">
+          {{ "%02d:00"|format(h) if h < 24 else "24:00" }}
+        </small>
+      </div>
+    {% endfor %}
+  </div>
+  <!-- 2) Calendar (lanes + dashed hour lines + reservations) below the time scale -->
+  <div id="desktopTimelineSport" class="border" style="position: relative; height: 350px; background: #f8f9fa; overflow: hidden;">
+    {% set sport_lane_map = {
+      'badminton_court_1': 0,
+      'badminton_court_2': 1,
+      'badminton_court_3': 2,
+      'basketball_volleyball_court': 3,
+      'futsal_court': 4
+    } %}
+    {% set sport_lane_labels = {
+      0: "Badminton Court 1",
+      1: "Badminton Court 2",
+      2: "Badminton Court 3",
+      3: "Basketball / Volleyball Court",
+      4: "Futsal Court"
+    } %}
+    <!-- A) "Watermark" lane labels (behind everything) -->
+    {% for lane_i, label in sport_lane_labels.items() %}
+      <div style="
+        position: absolute;
+        top: {{ 15 + lane_i*65 }}px;
+        left: 0; right: 0;
+        height: 55px;
+        text-align: left;
+        margin-left: 5px;
+        font-size: 1.2rem;
+        color: rgba(0, 0, 0, 0.4);
+        font-weight: bold;
+        z-index: 1;
+        pointer-events: none;">
+        {{ label }}
+      </div>
+    {% endfor %}
+
+    <!-- B) Dashed hour lines (no text) -->
+    {% for h in range(0, 25) %}
+      {% set left_pct = (h / 24) * 100 %}
+      <div style="
+        position: absolute;
+        top: 0;
+        left: {{ left_pct }}%;
+        height: 100%;
+        border-left: 1px dashed #ddd;
+        z-index: 2;">
+      </div>
+    {% endfor %}
+
+    <!-- C) Reservation blocks -->
+    {% for res in reservations if res.room in sport_lane_map %}
+      {% set start_minutes = res.start_time.hour * 60 + res.start_time.minute %}
+      {% set end_minutes   = res.end_time.hour   * 60 + res.end_time.minute %}
+      {% set duration      = end_minutes - start_minutes %}
+      {% set left_percent  = (start_minutes / 1440) * 100 %}
+      {% set width_percent = (duration / 1440) * 100 %}
+      {% set lane_index    = sport_lane_map.get(res.room, 0) %}
+      {% set top_offset    = 15 + (lane_index * 65) %}
+
+      <div class="bg-success text-white rounded p-1"
+           style="position: absolute;
+                  top: {{ top_offset }}px;
+                  height: 55px;
+                  left: {{ left_percent }}%;
+                  width: {{ width_percent }}%;
+                  overflow: hidden;
+                  z-index: 3;
+                  cursor: pointer;"
+                  onclick="showReservationDetail(
+                    '{{ res.id }}',
+                    '{{ res.name|escapejs }}',
+                    '{{ res.room|escapejs }}',
+                    '{{ res.start_time.strftime('%Y-%m-%d') }}',
+                    '{{ res.start_time.strftime('%H:%M') }}',
+                    '{{ res.end_time.strftime('%H:%M') }}',
+                    '{{ res.purpose|escapejs }}'
+                  )"
+                  >
+        <div class="small font-weight-bold">
+          {{ res.name }}
+        </div>
+        <div class="small">
+          {{ res.start_time.strftime('%H:%M') }} - {{ res.end_time.strftime('%H:%M') }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 
 
@@ -517,6 +731,43 @@
          desktopMarker.style.background = "rgba(255,0,0,0.5)";
          desktopMarker.style.left = ((minutes / 1440) * 100) + "%";
          desktopContainer.appendChild(desktopMarker);
+       }
+    }
+  })();
+</script>
+
+<!-- Add current time marker for sport timelines -->
+<script>
+  (function(){
+    var selectedDate = "{{ selected_date }}";
+    var today = new Date().toISOString().slice(0,10);
+    if(selectedDate === today) {
+       var now = new Date();
+       var minutes = now.getHours() * 60 + now.getMinutes();
+       
+       // Mobile sport timeline marker
+       var mobileSport = document.getElementById("mobileTimelineSport");
+       if(mobileSport) {
+         var marker = document.createElement("div");
+         marker.style.position = "absolute";
+         marker.style.left = "0";
+         marker.style.width = "100%";
+         marker.style.height = "2px";
+         marker.style.background = "rgba(255,0,0,0.5)";
+         marker.style.top = ((minutes / 1440) * 2000) + "px";
+         mobileSport.appendChild(marker);
+       }
+       // Desktop sport timeline marker
+       var desktopSport = document.getElementById("desktopTimelineSport");
+       if(desktopSport) {
+         var marker = document.createElement("div");
+         marker.style.position = "absolute";
+         marker.style.top = "0";
+         marker.style.bottom = "0";
+         marker.style.width = "2px";
+         marker.style.background = "rgba(255,0,0,0.5)";
+         marker.style.left = ((minutes / 1440) * 100) + "%";
+         desktopSport.appendChild(marker);
        }
     }
   })();

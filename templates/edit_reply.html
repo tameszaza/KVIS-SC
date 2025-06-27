@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Edit Reply</h3>
+  <form method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div class="form-group">
+      {{ form.reply_text.label }} {{ form.reply_text(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.admin_status.label }} {{ form.admin_status(class="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ form.progress.label }} {{ form.progress(class="form-control", min="0", max="100") }}
+    </div>
+    <div class="form-group">
+      {{ form.reply_image.label }} {{ form.reply_image(class="form-control-file") }}
+      {% if reply.admin_image %}
+        <div class="mt-2">
+          <img src="{{ url_for('static', filename='uploads/comments/' ~ reply.admin_image) }}" style="max-width:200px;">
+        </div>
+      {% endif %}
+    </div>
+    <button type="submit" class="btn btn-success">Update Reply</button>
+    <a href="{{ url_for('admin_comments') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

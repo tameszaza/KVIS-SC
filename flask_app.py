@@ -126,10 +126,17 @@ class ReservationForm(FlaskForm):
     end_time = TimeField('End Time', validators=[DataRequired()], format='%H:%M')
     name = StringField('Your Name', validators=[DataRequired()])
     purpose = TextAreaField('Purpose', validators=[DataRequired()])
-    room = SelectField('Room', choices=[('study_room_b1', 'Study Room B1'),
-                                          ('study_room_b2', 'Study Room B2'),
-                                          ('study_room_b3', 'Study Room B3'),
-                                          ('kitchen', 'Kitchen')], validators=[DataRequired()])
+    room = SelectField('Room', choices=[
+        ('study_room_b1', 'Study Room B1'),
+        ('study_room_b2', 'Study Room B2'),
+        ('study_room_b3', 'Study Room B3'),
+        ('kitchen', 'Kitchen'),
+        ('badminton_court_1', 'Badminton Court 1'),
+        ('badminton_court_2', 'Badminton Court 2'),
+        ('badminton_court_3', 'Badminton Court 3'),
+        ('basketball_volleyball_court', 'Basketball/Volleyball Court'),
+        ('futsal_court', 'Futsal Court')
+    ], validators=[DataRequired()])
     submit = SubmitField('Reserve')
 
 # WTForm for filtering reservations (timeline view)
@@ -137,10 +144,17 @@ class FilterForm(FlaskForm):
     filter_date = DateField('Select Date', validators=[DataRequired()], format='%Y-%m-%d')
     filter_room = SelectField('Select Room', choices=[
         ('ALL', 'All Rooms'),
+        ('STUDY', 'All Study Rooms'),
+        ('SPORT', 'All Sport Courts'),
         ('study_room_b1', 'Study Room B1'),
         ('study_room_b2', 'Study Room B2'),
         ('study_room_b3', 'Study Room B3'),
-        ('kitchen', 'Kitchen')
+        ('kitchen', 'Kitchen'),
+        ('badminton_court_1', 'Badminton Court 1'),
+        ('badminton_court_2', 'Badminton Court 2'),
+        ('badminton_court_3', 'Badminton Court 3'),
+        ('basketball_volleyball_court', 'Basketball/Volleyball Court'),
+        ('futsal_court', 'Futsal Court')
     ], validators=[DataRequired()])
     submit = SubmitField('Filter')
 
@@ -406,9 +420,28 @@ def reservations():
     start_dt = datetime.combine(filter_form.filter_date.data, time.min)
     end_dt   = datetime.combine(filter_form.filter_date.data, time.max)
 
-    # If "ALL", then fetch all reservations for that day; otherwise filter by a single room
+    # Room groups
+    study_rooms = ['study_room_b1', 'study_room_b2', 'study_room_b3', 'kitchen']
+    sport_courts = [
+        'badminton_court_1', 'badminton_court_2', 'badminton_court_3',
+        'basketball_volleyball_court', 'futsal_court'
+    ]
+
+    # Filtering logic for new groups
     if selected_room == 'ALL':
         reservations_list = Reservation.query.filter(
+            Reservation.start_time >= start_dt,
+            Reservation.start_time <= end_dt
+        ).order_by(Reservation.start_time).all()
+    elif selected_room == 'STUDY':
+        reservations_list = Reservation.query.filter(
+            Reservation.room.in_(study_rooms),
+            Reservation.start_time >= start_dt,
+            Reservation.start_time <= end_dt
+        ).order_by(Reservation.start_time).all()
+    elif selected_room == 'SPORT':
+        reservations_list = Reservation.query.filter(
+            Reservation.room.in_(sport_courts),
             Reservation.start_time >= start_dt,
             Reservation.start_time <= end_dt
         ).order_by(Reservation.start_time).all()
@@ -1420,6 +1453,43 @@ def admin_download_data_entries(form_id):
         response.headers["Content-Disposition"] = f"attachment; filename={data_form.title}.csv"
         return response
 # ...existing code...
+
+# --- New: Admin Reply Editing ---
+
+# Add a WTForm for editing admin replies
+class AdminReplyEditForm(FlaskForm):
+    reply_text = TextAreaField('Reply', validators=[DataRequired()])
+    admin_status = SelectField('Status', choices=[
+        ('coordinating', 'Coordinating'),
+        ('in progress', 'In Progress'),
+        ('complete', 'Complete')
+    ])
+    progress = IntegerField('Progress', default=0)
+    reply_image = FileField('Image (Optional)')
+    submit = SubmitField('Update Reply')
+
+@app.route('/admin/edit_reply/<int:reply_id>', methods=['GET', 'POST'])
+@login_required
+def edit_reply(reply_id):
+    reply = CommentReply.query.get_or_404(reply_id)
+    form = AdminReplyEditForm(obj=reply)
+    if form.validate_on_submit():
+        reply.reply_text = form.reply_text.data
+        reply.admin_status = form.admin_status.data
+        reply.progress = form.progress.data
+        reply.reply_time = datetime.utcnow()
+        if form.reply_image.data and form.reply_image.data.filename:
+            uploads_dir = os.path.join(BASE_DIR, 'static', 'uploads', 'comments')
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            filename = secure_filename(form.reply_image.data.filename)
+            image_path = os.path.join(uploads_dir, filename)
+            compress_and_save_image(form.reply_image.data, image_path, image_path)
+            reply.admin_image = filename
+        db.session.commit()
+        flash("Reply updated.", "success")
+        return redirect(url_for('admin_comments'))
+    return render_template('edit_reply.html', form=form, reply=reply)
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5000)

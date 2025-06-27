@@ -140,6 +140,9 @@
                              class="reply-thumbnail"
                              style="width: 100%; max-width: 300px; height: auto; max-height: 300px; object-fit: contain; display: block; margin: 0 auto;">
                       {% endif %}
+                      {% if reply.admin_status != 'user' %}
+                        <a href="{{ url_for('edit_reply', reply_id=reply.id) }}" class="btn btn-sm btn-outline-primary mt-2">Edit</a>
+                      {% endif %}
                     </div>
                   </div>
                 </div>
